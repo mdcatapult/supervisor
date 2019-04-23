@@ -23,17 +23,18 @@ object HTML extends Rule {
       None
     else if (isHtml.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
-    else if (completed("html.screenshot") && completed("html.render") && completed("ner"))
+    else if (completed("html.screenshot") && completed("html.render"))
       None
     else if (started("html") || started("html.render"))
-      Some(Sendables() ::: NER.unapply(doc).getOrElse(Sendables())) // ensures requeue with supervisor
+      Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-      Some(
-        Sendables(
-          Queue[DoclibMsg]("doclib.html.screenshot"),
-          Queue[DoclibMsg]("doclib.html.render"),
-        ) ::: NER.unapply(doc).getOrElse(Sendables())
+    Some(withNer(
+      Sendables(
+        Queue[DoclibMsg]("doclib.html.screenshot"),
+        Queue[DoclibMsg]("doclib.html.render"),
       )
+    ))
+
   }
 
 }

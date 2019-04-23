@@ -42,6 +42,6 @@ object Document extends Rule {
     else if (!validDocuments.contains(doc.getString("mimetype")))
       None
     else
-      NER.unapply(doc)
+      Some(withNer(Sendables()))
   }
 }

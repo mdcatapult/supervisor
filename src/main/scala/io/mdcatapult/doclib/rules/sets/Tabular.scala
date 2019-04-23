@@ -30,10 +30,10 @@ object Tabular extends Rule {
       Some(Sendables()) // ensures requeue with supervisor
     else
       doc.getString("mimetype") match {
-        case isTabular(v, _, _, _) ⇒ Some(
+        case isTabular(v, _, _, _) ⇒ Some(withNer(
           Sendables(
             Queue[DoclibMsg]("doclib.tabular")
-          ) ::: NER.unapply(doc).getOrElse(Sendables())
+          )))
         )
         case _ ⇒ None
       }

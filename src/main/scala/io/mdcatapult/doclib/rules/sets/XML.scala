@@ -32,8 +32,8 @@ object XML extends Rule {
     else if (completed("xml"))
       None
     else if (started("xml"))
-      Some(Sendables()) // ensures requeue with supervisor
+      Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-      NER.unapply(doc)
+      Some(withNer(Sendables()))
   }
 }

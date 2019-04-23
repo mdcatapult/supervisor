@@ -20,7 +20,7 @@ object Chemical extends Rule {
     else if (isChemical.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
     else
-      NER.unapply(doc)
+      Some(withNer(Sendables()))
 
   }
 }

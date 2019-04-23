@@ -31,9 +31,9 @@ object Text extends Rule {
     else if (completed("text"))
       None
     else if (started("text"))
-      Some(Sendables()) // ensures requeue with supervisor
+      Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-      NER.unapply(doc)
+      Some(withNer(Sendables()))
   }
 
 }
