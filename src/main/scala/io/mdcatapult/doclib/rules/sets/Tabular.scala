@@ -22,10 +22,13 @@ object Tabular extends Rule {
 
   def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
     implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype")) { None }
-    else if (completed("tabular")) { None }
-    else if (started("tabular")) { Some(Sendables()) } // ensures requeue with supervisor
-    else {
+    if (!doc.contains("mimetype"))
+      None
+    else if (completed("tabular"))
+      None
+    else if (started("tabular"))
+      Some(Sendables()) // ensures requeue with supervisor
+    else
       doc.getString("mimetype") match {
         case isTabular(v, _, _, _) ⇒ Some(
           Sendables(
@@ -34,7 +37,6 @@ object Tabular extends Rule {
         )
         case _ ⇒ None
       }
-    }
   }
 
 }

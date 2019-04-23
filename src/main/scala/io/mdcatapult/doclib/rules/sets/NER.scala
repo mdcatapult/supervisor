@@ -19,14 +19,16 @@ object NER extends Rule {
 
   def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
     implicit val document: MongoDoc = doc
-    if (!doc.contains("source")) { None }
-    else if (completed("ner")) { None }
-    else if (started("ner")) { Some(Sendables()) } // ensures requeue with supervisor
-    else {
+    if (!doc.contains("source"))
+      None
+    else if (completed("ner"))
+      None
+    else if (started("ner"))
+      Some(Sendables()) // ensures requeue with supervisor
+    else
       Some(Sendables(
         Topic[DoclibMsg](routingKey, exchange),
       ))
-    }
   }
 
 }

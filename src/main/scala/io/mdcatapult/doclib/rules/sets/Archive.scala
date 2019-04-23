@@ -4,10 +4,9 @@ import java.io.{BufferedInputStream, FileInputStream}
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.klein.queue.{Envelope, Queue, Sendable}
+import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.klein.queue.Queue
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
-import org.bson.BsonBoolean
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -26,25 +25,30 @@ object Archive extends Rule {
   val downstream = "doclib.unarchive"
 
   def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
-      implicit val document: MongoDoc = doc
-      if (!doc.contains("mimetype")) { None }
-      else if (isArchive.findFirstIn(doc.getString("mimetype")).isEmpty) { None }
-      else if (doc.contains("unarchived")) { None }
-      else if (completed("unarchived")) { None }
-      else if (started("unarchived")) { Some(Sendables()) } // ensures requeue with supervisor
-      else {
-        Try(new ArchiveStreamFactory().createArchiveInputStream(
-          new BufferedInputStream(
-            new FileInputStream(
-              doc.getString("source")
-            )
+    implicit val document: MongoDoc = doc
+    if (!doc.contains("mimetype"))
+      None
+    else if (isArchive.findFirstIn(doc.getString("mimetype")).isEmpty)
+      None
+    else if (doc.contains("unarchived"))
+      None
+    else if (completed("unarchived"))
+      None
+    else if (started("unarchived"))
+      Some(Sendables()) // ensures requeue with supervisor
+    else
+      Try(new ArchiveStreamFactory().createArchiveInputStream(
+        new BufferedInputStream(
+          new FileInputStream(
+            doc.getString("source")
           )
-        )) match {
-          case Success(_) ⇒ Some(Sendables(
-            Queue[DoclibMsg](downstream),
-          ))
-          case Failure(e) ⇒ throw e // throwing means msg will be dead-lettered
-        }
+        )
+      )) match {
+        case Success(_) ⇒ Some(Sendables(
+          Queue[DoclibMsg](downstream),
+        ))
+        case Failure(e) ⇒ throw e // throwing means msg will be dead-lettered
       }
-    }
+
+  }
 }
