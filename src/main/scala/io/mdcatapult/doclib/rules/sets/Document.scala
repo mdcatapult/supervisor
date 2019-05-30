@@ -8,9 +8,6 @@ import scala.concurrent.ExecutionContextExecutor
 
 object Document extends Rule {
 
-  implicit val system: ActorSystem = ActorSystem("consumer-supervisor-image")
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
-
   val validDocuments: List[String] = List(
     "application/msword",
     "application/pdf",
@@ -35,7 +32,7 @@ object Document extends Rule {
     "application/x-msaccess"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
+  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None

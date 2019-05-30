@@ -7,7 +7,8 @@ import com.spingo.op_rabbit.SubscriptionRef
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.rules.Engine
+import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
+import io.mdcatapult.doclib.rules.legacy.{Engine ⇒ LegacyEngine}
 import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Queue
@@ -31,10 +32,16 @@ object ConsumerSupervisor extends App with LazyLogging {
   val upstream: Queue[SupervisorMsg] = new Queue[SupervisorMsg](config.getString("upstream.queue"))
   val subscription: SubscriptionRef = upstream.subscribe(handle, config.getInt("upstream.concurrent"))
 
-
   /** Initialise Mongo **/
   val mongo = new Mongo()
   val collection = mongo.collection
+
+  val engine: RulesEngine =
+    if (config.getBoolean("supervisor.legacy"))
+      new LegacyEngine()
+    else
+      new Engine()
+
 
   def publish(id: String, sendables: Sendables): Option[Boolean] =
     Try(sendables.foreach(s ⇒ s.send(DoclibMsg(id)))) match {
@@ -48,14 +55,18 @@ object ConsumerSupervisor extends App with LazyLogging {
     * @param key String
     * @return
     */
-  def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] =
+  def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] = {
     (for {
       doc ← OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
-      sendables ← OptionT.fromOption(Engine(doc).resolve)
+      sendables ← OptionT.fromOption(engine.resolve(doc))
       if sendables.nonEmpty
-      result ← OptionT.fromOption( publish(doc.getObjectId("_id").toString, sendables))
+      result ← OptionT.fromOption(publish(doc.getObjectId("_id").toString, sendables))
       if result
       _ ← OptionT.pure(upstream.send(msg))
-    } yield result).value
+    } yield {
+      println(msg, sendables)
+      result
+    }).value
+  }
 
 }

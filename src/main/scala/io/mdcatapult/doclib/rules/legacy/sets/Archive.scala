@@ -1,10 +1,11 @@
-package io.mdcatapult.doclib.rules.sets
+package io.mdcatapult.doclib.rules.legacy.sets
 
 import java.io.{BufferedInputStream, FileInputStream}
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
 import io.mdcatapult.klein.queue.Queue
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.mongodb.scala.{Document ⇒ MongoDoc}
@@ -19,7 +20,7 @@ object Archive extends Rule {
   val isArchive: Regex =
     """(application/(gzip|vnd.ms-cab-compressed|x-(7z-compressed|ace-compressed|alz-compressed|apple-diskimage|arj|astrotite-afa|b1|bzip2|cfs-compressed|compress|cpio|dar|dgc-compressed|gca-compressed|gtar|lzh|lzip|lzma|lzop|lzx|par2|rar-compressed|sbx|shar|snappy-framed|stuffit|stuffitx|tar|xz|zoo)|zip))""".r
 
-  val downstream = "doclib.unarchive"
+  val downstream = "klein.extraction"
 
   def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
@@ -27,11 +28,11 @@ object Archive extends Rule {
       None
     else if (isArchive.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
-    else if (doc.contains("unarchived"))
+    else if (doc.contains("extraction"))
       None
-    else if (completed("unarchived"))
+    else if (completed("extraction"))
       None
-    else if (started("unarchived"))
+    else if (started("extraction"))
       Some(Sendables()) // ensures requeue with supervisor
     else
       Try(new ArchiveStreamFactory().createArchiveInputStream(

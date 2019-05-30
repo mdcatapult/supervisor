@@ -1,11 +1,11 @@
-package io.mdcatapult.doclib.rules.sets
+package io.mdcatapult.doclib.rules.legacy.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.klein.queue._
 import org.mongodb.scala.{Document ⇒ MongoDoc}
-
+import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
@@ -13,10 +13,11 @@ import scala.util.matching.Regex
   * Rule for files that are composed of tabular data
   */
 object Tabular extends Rule {
-
-
+  /**
+    * regex not including tsv on purpose
+    */
   val isTabular: Regex =
-    """^((text|application)/(csv|tab.*|vnd.(lotus-1-2-3|ms-excel.*|oasis.*|openxmlformats-officedocument.spreadsheetml.*|stardivision.*|sun.xml.calc.*)))$""".r
+    """^((text|application)/(csv|vnd.(lotus-1-2-3|ms-excel.*|oasis.*|openxmlformats-officedocument.spreadsheetml.*|stardivision.*|sun.xml.calc.*)))$""".r
 
   def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
@@ -28,12 +29,11 @@ object Tabular extends Rule {
       Some(Sendables()) // ensures requeue with supervisor
     else
       doc.getString("mimetype") match {
-        case isTabular(v, _, _, _) ⇒ Some(withNer(
+        case isTabular(v, _, _, _) ⇒ Some(
           Sendables(
-            Queue[DoclibMsg]("doclib.tabular")
-          )))
+            Queue[DoclibMsg](s"${config.getString("supervisor.flags")}.tabular")
+          ))
         case _ ⇒ None
       }
   }
-
 }

@@ -8,9 +8,6 @@ import scala.concurrent.ExecutionContextExecutor
 
 object Text extends Rule {
 
-  implicit val system: ActorSystem = ActorSystem("consumer-supervisor-image")
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
-
   val validDocuments: List[String] = List(
     "message/news", "message/rfc822", "text/aln", "text/calendar", "text/css", "text/fasta", "text/hkl",
     "text/html", "text/markdown", "text/matlab", "text/nex", "text/plain", "text/r", "text/rtf",
@@ -22,7 +19,7 @@ object Text extends Rule {
     "text/x-shellscript", "text/x-tcl", "text/x-tex"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
+  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None

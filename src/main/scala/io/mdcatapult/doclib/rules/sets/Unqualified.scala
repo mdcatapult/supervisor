@@ -8,8 +8,6 @@ import scala.concurrent.ExecutionContextExecutor
 
 object Unqualified extends Rule {
 
-  implicit val system: ActorSystem = ActorSystem("consumer-supervisor-image")
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
 
-  def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = Some(Sendables())
+  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = Some(Sendables())
 }

@@ -12,12 +12,9 @@ import scala.util.matching.Regex
 
 object HTML extends Rule {
 
-  implicit val system: ActorSystem = ActorSystem("consumer-supervisor-archive")
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
-
   val isHtml: Regex = """(text/((x-server-parsed-|webview)*html))""".r
 
-  def unapply(doc: MongoDoc)(implicit config: Config): Option[Sendables] = {
+  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None
