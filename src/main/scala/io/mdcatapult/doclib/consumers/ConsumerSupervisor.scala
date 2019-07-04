@@ -36,19 +36,6 @@ object ConsumerSupervisor extends App with LazyLogging {
   val mongo = new Mongo()
   val collection = mongo.collection
 
-  val engine: RulesEngine =
-    if (config.getBoolean("supervisor.legacy"))
-      new LegacyEngine()
-    else
-      new Engine()
-
-
-  def publish(id: String, sendables: Sendables): Option[Boolean] =
-    Try(sendables.foreach(s ⇒ s.send(DoclibMsg(id)))) match {
-      case Success(_) ⇒ Some(true)
-      case Failure(e) ⇒ throw e
-    }
-
   /**
     * handler for messages from the queue
     * @param msg RabbitMsg
@@ -56,17 +43,31 @@ object ConsumerSupervisor extends App with LazyLogging {
     * @return
     */
   def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] = {
+
+    val engine: RulesEngine =
+      if (config.getBoolean("supervisor.legacy"))
+        new LegacyEngine()
+      else
+        new Engine()
+
+
+    def publish(id: String, sendables: Sendables): Option[Boolean] =
+      Try(sendables.foreach(s ⇒ s.send(DoclibMsg(id)))) match {
+        case Success(_) ⇒ Some(true)
+        case Failure(e) ⇒ throw e
+      }
+
+
     (for {
       doc ← OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       sendables ← OptionT.fromOption(engine.resolve(doc))
-      if sendables.nonEmpty
-      result ← OptionT.fromOption(publish(doc.getObjectId("_id").toString, sendables))
-      if result
-      _ ← OptionT.pure(upstream.send(msg))
-    } yield {
-      println(msg, sendables)
-      result
-    }).value
+      pResult ← OptionT.fromOption(publish(doc.getObjectId("_id").toString, sendables))
+    } yield (sendables, pResult)).value.andThen({
+      case Success(r) ⇒
+        upstream.send(msg)
+        println(msg, r)
+      case Failure(e) ⇒ throw e
+    })
   }
 
 }

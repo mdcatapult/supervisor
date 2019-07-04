@@ -31,7 +31,7 @@ object Tabular extends Rule {
       doc.getString("mimetype") match {
         case isTabular(v, _, _, _) ⇒ Some(
           Sendables(
-            Queue[DoclibMsg](s"${config.getString("supervisor.flags")}.tabular")
+            Exchange[DoclibMsg](s"${config.getString("supervisor.flags")}.tabular")
           ))
         case _ ⇒ None
       }

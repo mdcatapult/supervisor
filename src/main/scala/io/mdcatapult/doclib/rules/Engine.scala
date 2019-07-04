@@ -17,7 +17,7 @@ trait RulesEngine {
   * This effect cascades, if a document qualifies for multiple criteria then it will process each one in
   * sequence over time.
   *
-  * @param config
+  * @param config Config
   */
 class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor) extends RulesEngine {
   def resolve(doc: MongoDoc): Option[Sendables] = doc match {
@@ -28,6 +28,7 @@ class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExec
     case Text(qs) ⇒ Some(qs.distinct)
     case Document(qs) ⇒ Some(qs.distinct)
     case Chemical(qs) ⇒ Some(qs.distinct)
+    case _ ⇒ None
 
   }
 }

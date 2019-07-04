@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
-import io.mdcatapult.klein.queue.Queue
+import io.mdcatapult.klein.queue.Exchange
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -23,6 +23,6 @@ object PreProcess extends Rule {
     else if (started("preprocess"))
       Some(Sendables()) // ensures requeue with supervisor
     else
-      Some(Sendables(Queue[DoclibMsg](downstream)))
+      Some(Sendables(Exchange[DoclibMsg](downstream)))
   }
 }
