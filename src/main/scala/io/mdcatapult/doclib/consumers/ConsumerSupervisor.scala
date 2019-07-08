@@ -14,7 +14,10 @@ import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Queue
 import org.bson.types.ObjectId
 import org.mongodb.scala._
+import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters._
+import org.mongodb.scala.model.Updates._
+import org.mongodb.scala.result.UpdateResult
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
@@ -44,6 +47,9 @@ object ConsumerSupervisor extends App with LazyLogging {
     */
   def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] = {
 
+    /**
+      * construct the appropriate rule engine based on the supplied config
+      */
     val engine: RulesEngine =
       if (config.getBoolean("supervisor.legacy"))
         new LegacyEngine()
@@ -51,6 +57,29 @@ object ConsumerSupervisor extends App with LazyLogging {
         new Engine()
 
 
+    /**
+      * forcibly remove status for an exchange/queue to allow reprocessing
+      * @return
+      */
+    def reset: Future[Option[Any]] = {
+      if (msg.reset.isDefined) {
+        collection.updateOne(
+          equal("_id", new ObjectId(msg.id)),
+          combine( msg.reset.getOrElse(List[String]()).map(ex ⇒
+            unset(f"${config.getString("supervisor.flags")}.$ex")
+          ):_* )
+        ).toFutureOption()
+      } else {
+        Future.successful(Some(false))
+      }
+    }
+
+    /**
+      * send a message to all lf the listed Sendabled
+      * @param id document id to send
+      * @param sendables list of sendables
+      * @return
+      */
     def publish(id: String, sendables: Sendables): Option[Boolean] =
       Try(sendables.foreach(s ⇒ s.send(DoclibMsg(id)))) match {
         case Success(_) ⇒ Some(true)
@@ -59,6 +88,7 @@ object ConsumerSupervisor extends App with LazyLogging {
 
 
     (for {
+      _ ← OptionT(reset)
       doc ← OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       sendables ← OptionT.fromOption(engine.resolve(doc))
       pResult ← OptionT.fromOption(publish(doc.getObjectId("_id").toString, sendables))
@@ -69,5 +99,4 @@ object ConsumerSupervisor extends App with LazyLogging {
       case Failure(e) ⇒ throw e
     })
   }
-
 }

@@ -9,6 +9,11 @@ object SupervisorMsg {
   implicit val msgFormatter: Format[SupervisorMsg] = Json.format[SupervisorMsg]
 }
 
-case class SupervisorMsg(id: String) extends Envelope
+/**
+  *
+  * @param id id of the mongo document to check
+  * @param reset list of exchanges to force processing
+  */
+case class SupervisorMsg(id: String, reset: Option[List[String]] = None) extends Envelope
 
 
