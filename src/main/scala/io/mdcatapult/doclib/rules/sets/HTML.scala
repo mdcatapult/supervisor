@@ -20,18 +20,12 @@ object HTML extends Rule {
       None
     else if (isHtml.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
-    else if (completed("html.screenshot") && completed("html.render"))
+    else if (completed("supervisor.html"))
       None
-    else if (started("html") || started("html.render"))
+    else if (started("supervisor.html"))
       Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-    Some(withNer(
-      Sendables(
-        Queue[DoclibMsg]("doclib.html.screenshot"),
-        Queue[DoclibMsg]("doclib.html.render"),
-      )
-    ))
-
+      Some(withNer(getSendables("supervisor.html")))
   }
 
 }

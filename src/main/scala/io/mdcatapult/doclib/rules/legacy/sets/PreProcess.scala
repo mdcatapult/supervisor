@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.legacy.sets
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.Exchange
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 

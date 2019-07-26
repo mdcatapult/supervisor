@@ -7,9 +7,9 @@ import org.mongodb.scala.{Document ⇒ MongoDoc}
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
-object Chemical extends Rule {
+object Video extends Rule {
 
-  val isChemical: Regex = """(chemical/(.*))""".r
+  val isVideo: Regex = """(video/(.*))""".r
 
   def unapply(doc: MongoDoc)
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
@@ -17,9 +17,9 @@ object Chemical extends Rule {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None
-    else if (isChemical.findFirstIn(doc.getString("mimetype")).isEmpty)
+    else if (isVideo.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
     else
-      Some(withNer(Sendables()))
+      Some(Sendables())
   }
 }

@@ -1,18 +1,13 @@
 package io.mdcatapult.doclib.rules.legacy.sets
 
-import java.io.{BufferedInputStream, FileInputStream}
-
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.Exchange
-import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.util._
-import scala.util.matching.Regex
 
 
 object Archive extends Rule {

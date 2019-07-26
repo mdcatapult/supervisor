@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.legacy.sets
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue._
 import org.mongodb.scala.bson.BsonInt32
 import org.mongodb.scala.{Document ⇒ MongoDoc}
@@ -24,7 +24,7 @@ object NER extends Rule {
       Some(Sendables()) // ensures requeue with supervisor
     else
       Some(Sendables(
-        Exchange[DoclibMsg](s"${config.getString("supervisor.flags")}.namedentities"),
+        Exchange[DoclibMsg](s"${config.getString("doclib.flags")}.namedentities"),
       ))
   }
 

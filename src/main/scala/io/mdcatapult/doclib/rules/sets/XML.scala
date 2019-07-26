@@ -27,11 +27,11 @@ object XML extends Rule {
       None
     else if (!validDocuments.contains(doc.getString("mimetype")))
       None
-    else if (completed("xml"))
+    else if (completed("supervisor.xml"))
       None
-    else if (started("xml"))
+    else if (started("supervisor.xml"))
       Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-      Some(withNer(Sendables()))
+      Some(withNer(getSendables("supervisor.xml")))
   }
 }

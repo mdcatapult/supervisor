@@ -18,14 +18,12 @@ object NER extends Rule {
     implicit val document: MongoDoc = doc
     if (!doc.contains("source"))
       None
-    else if (completed("ner"))
+    else if (completed("supervisor.ner"))
       None
-    else if (started("ner"))
+    else if (started("supervisor.ner"))
       Some(Sendables()) // ensures requeue with supervisor
     else
-      Some(Sendables(
-        Topic[DoclibMsg](routingKey, exchange),
-      ))
+      Some(getSendables("supervisor.ner"))
   }
 
 }

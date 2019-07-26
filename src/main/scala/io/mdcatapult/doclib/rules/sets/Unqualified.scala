@@ -9,5 +9,7 @@ import scala.concurrent.ExecutionContextExecutor
 object Unqualified extends Rule {
 
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = Some(Sendables())
+  def unapply(doc: MongoDoc)
+             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+  : Option[Sendables] = Some(Sendables())
 }

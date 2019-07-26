@@ -19,18 +19,20 @@ object Text extends Rule {
     "text/x-shellscript", "text/x-tcl", "text/x-tex"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
+  def unapply(doc: MongoDoc)
+             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+  : Option[Sendables] = {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None
     else if (!validDocuments.contains(doc.getString("mimetype")))
       None
-    else if (completed("text"))
+    else if (completed("supervisor.text"))
       None
-    else if (started("text"))
+    else if (started("supervisor.text"))
       Some(withNer(Sendables())) // ensures requeue with supervisor
     else
-      Some(withNer(Sendables()))
+      Some(withNer(getSendables("supervisor.text")))
   }
 
 }

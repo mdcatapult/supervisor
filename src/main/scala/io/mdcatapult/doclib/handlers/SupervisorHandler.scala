@@ -23,7 +23,7 @@ class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem
     * construct the appropriate rule engine based on the supplied config
     */
   val engine: RulesEngine =
-    if (config.getBoolean("supervisor.legacy"))
+    if (config.getBoolean("doclib.legacy"))
       new LegacyEngine()
     else
       new Engine()
@@ -38,7 +38,7 @@ class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem
       collection.updateOne(
         equal("_id", new ObjectId(msg.id)),
         combine( msg.reset.getOrElse(List[String]()).map(ex ⇒
-          unset(f"${config.getString("supervisor.flags")}.$ex")
+          unset(f"${config.getString("doclib.flags")}.$ex")
         ):_* )
       ).toFutureOption()
     } else {

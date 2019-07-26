@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.legacy.sets
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.rules.sets.{Rule, Sendables}
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.Exchange
 import org.mongodb.scala.bson.collection.immutable.Document
 import org.mongodb.scala.bson.{BsonBoolean, BsonDocument, BsonNull, BsonValue}
@@ -15,7 +15,7 @@ import scala.concurrent.ExecutionContextExecutor
 
 class RuleSpec extends FlatSpec{
   implicit val config: Config = ConfigFactory.parseMap(Map[String, Any](
-    "supervisor.flags" → "doclib",
+    "doclib.flags" → "doclib",
     "unarchive.to.path" → "./test"
   ).asJava)
   implicit val system: ActorSystem = ActorSystem("scalatest", config)
@@ -24,7 +24,7 @@ class RuleSpec extends FlatSpec{
 
   def baselineTests(r: Rule, flag: String, props: Seq[(String, BsonValue)] = List[(String, BsonValue)]()): Unit = {
     "An empty (invalid) Document" should " return None" in {
-      assert(PreProcess.unapply(Document()).isEmpty)
+      assert(r.unapply(Document()).isEmpty)
     }
 
     "A valid Document with a NULL flag " should "return an empty Some(Sendable)" in {

@@ -32,13 +32,15 @@ object Document extends Rule {
     "application/x-msaccess"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
+  def unapply(doc: MongoDoc)
+             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+  : Option[Sendables] = {
     implicit val document: MongoDoc = doc
     if (!doc.contains("mimetype"))
       None
     else if (!validDocuments.contains(doc.getString("mimetype")))
       None
     else
-      Some(withNer(Sendables()))
+      Some(withNer(getSendables("supervisor.document")))
   }
 }
