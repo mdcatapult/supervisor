@@ -59,8 +59,6 @@ This ruleset is not intended to be used directly but to be chained with other ru
 
 ### Text
 
-### Unqualified
-
 TDB
 
 ### XML

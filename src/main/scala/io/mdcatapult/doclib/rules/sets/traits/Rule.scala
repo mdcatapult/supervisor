@@ -1,14 +1,14 @@
-package io.mdcatapult.doclib.rules.sets
+package io.mdcatapult.doclib.rules.sets.traits
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.util.DoclibFlags
 import io.mdcatapult.klein.queue.Queue
 import org.mongodb.scala.{Document ⇒ MongoDoc}
-
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContextExecutor
+import collection.JavaConverters._
 
 trait Rule {
 
@@ -48,7 +48,9 @@ trait Rule {
 
 
   /**
-    * checks the document for all configured & required flags and generates a list of sendables
+    * checks the document for all configured & required flags and generates a list of
+    * sendables that do not already have flags present in the document,
+    * will always return an empty Sendables list which will always result in requeue
     * @param key String ofg the config path
     * @param doc Document to check
     * @param config Config to retrieve settings from
@@ -66,19 +68,6 @@ trait Rule {
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
-  /**
-    * convenience function to automatically add
-    * @param sendables Sendables
-    * @param doc Document to test
-    * @param config Config
-    * @param sys ActorSystem
-    * @param ex ExecutionContextExecutor
-    * @return
-    */
-  def withNer(sendables: Sendables)
-             (implicit doc: MongoDoc, config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
-  : Sendables =
-    sendables ::: NER.unapply(doc).getOrElse(Sendables())
 
 
 }

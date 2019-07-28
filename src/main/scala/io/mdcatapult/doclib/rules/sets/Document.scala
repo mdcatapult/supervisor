@@ -2,13 +2,14 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.rules.sets.traits.NER
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
 
-object Document extends Rule {
+object Document extends NER {
 
-  val validDocuments: List[String] = List(
+  val validMimetypes: List[String] = List(
     "application/msword",
     "application/pdf",
     "application/rtf",
@@ -36,11 +37,10 @@ object Document extends Rule {
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Option[Sendables] = {
     implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (!validDocuments.contains(doc.getString("mimetype")))
-      None
+
+    if (doc.contains("mimetype") && validMimetypes.contains(doc.getString("mimetype")))
+      requiredNer
     else
-      Some(withNer(getSendables("supervisor.document")))
+      None
   }
 }

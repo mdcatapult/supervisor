@@ -2,6 +2,7 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.rules.sets.traits.Rule
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -20,6 +21,6 @@ object Video extends Rule {
     else if (isVideo.findFirstIn(doc.getString("mimetype")).isEmpty)
       None
     else
-      Some(Sendables())
+      None
   }
 }

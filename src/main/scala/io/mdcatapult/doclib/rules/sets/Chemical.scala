@@ -2,12 +2,13 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.rules.sets.traits.NER
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
-object Chemical extends Rule {
+object Chemical extends NER {
 
   val isChemical: Regex = """(chemical/(.*))""".r
 
@@ -15,11 +16,9 @@ object Chemical extends Rule {
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Option[Sendables] = {
     implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (isChemical.findFirstIn(doc.getString("mimetype")).isEmpty)
-      None
+    if (doc.contains("mimetype") && isChemical.findFirstIn(doc.getString("mimetype")).nonEmpty)
+      requiredNer
     else
-      Some(withNer(Sendables()))
+      None
   }
 }

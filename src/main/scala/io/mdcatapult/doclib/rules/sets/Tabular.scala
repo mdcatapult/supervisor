@@ -1,20 +1,17 @@
 package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
-import cats.data._
-import cats.implicits._
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.klein.queue._
+import io.mdcatapult.doclib.rules.sets.traits.NER
 import org.mongodb.scala.{Document ⇒ MongoDoc}
-import collection.JavaConverters._
+
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends Rule {
+object Tabular extends NER {
 
 
   val isTsv: Regex =
@@ -38,15 +35,6 @@ object Tabular extends Rule {
   : Option[Sendables] = {
     implicit val document: MongoDoc = doc
 
-
-    def hasNer = {
-      if (!started("supervisor.ner"))
-        Some(withNer(Sendables())) // not been to NER yet to lets start that
-      else if (!completed("supervisor.ner"))
-        Some(Sendables()) // wait for NER to finish
-      else None
-    }
-
     /**
       * If doc is TSV ensure NER is completed first
       * @return
@@ -67,8 +55,8 @@ object Tabular extends Rule {
       else
         None
 
-     if (validMimetypes.contains(doc.getString("mimetype")))
-       hasNer match {
+     if (doc.contains("mimetype") && validMimetypes.contains(doc.getString("mimetype")))
+       requiredNer match {
         case Some(sendables) ⇒ Some(sendables)
         case None ⇒ doc.getString("mimetype") match {
           case isTsv(_,_) ⇒ doTableProcessing
