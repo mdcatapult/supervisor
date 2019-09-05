@@ -17,7 +17,7 @@ object Tabular extends Rule {
     * regex not including tsv on purpose
     */
   val isTabular: Regex =
-    """^((text|application)/(csv|vnd.(lotus-1-2-3|ms-excel.*|oasis.*|openxmlformats-officedocument.spreadsheetml.*|stardivision.*|sun.xml.calc.*)))$""".r
+    """^((application)/(vnd.(lotus-1-2-3|ms-excel.*|oasis.*|openxmlformats-officedocument.spreadsheetml.*|stardivision.*|sun.xml.calc.*)))$""".r
 
   def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
     implicit val document: MongoDoc = doc
