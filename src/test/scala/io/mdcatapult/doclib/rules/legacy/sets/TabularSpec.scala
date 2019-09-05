@@ -5,7 +5,7 @@ import org.mongodb.scala.bson.collection.immutable.Document
 
 class TabularSpec extends RuleSpec {
 
-  baselineTests(Tabular, "tabular", List("mimetype" → BsonString("text/csv")))
+  baselineTests(Tabular, "tabular", List("mimetype" → BsonString("application/vnd.ms-excel")))
 
   "A Document with unrecognised mimetype" should " return None" in {
     assert(Archive.unapply(Document("mimetype" → "moo")).isEmpty)
