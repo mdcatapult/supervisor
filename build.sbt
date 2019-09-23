@@ -1,12 +1,12 @@
 
 
 lazy val configVersion = "1.3.2"
-lazy val akkaVersion = "2.6.0-M2"
-lazy val catsVersion = "2.0.0-M4"
+lazy val akkaVersion = "2.5.25"
+lazy val catsVersion = "2.0.0"
 lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
-lazy val tikaVersion = "1.20"
+lazy val tikaVersion = "1.21"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
@@ -37,16 +37,20 @@ lazy val root = (project in file(".")).
       "org.typelevel" %% "cats-macros"                % catsVersion,
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
-      "io.mdcatapult.doclib" %% "common"              % "0.0.9",
+      "io.mdcatapult.doclib" %% "common"              % "0.0.14",
       "org.apache.tika" % "tika-core"                 % tikaVersion,
       "org.apache.tika" % "tika-parsers"              % tikaVersion,
       "jakarta.ws.rs" % "jakarta.ws.rs-api"           % "2.1.4"
     )
       .map(_ exclude("javax.ws.rs", "javax.ws.rs-api"))
-      .map(_ exclude("com.sun.activation", "javax.activation")),
+      .map(_ exclude("com.sun.activation", "javax.activation"))
+      .map(_ exclude("com.sun.activation", "registries")),
     assemblyJarName := "consumer-supervisor.jar",
     assemblyMergeStrategy in assembly := {
       case PathList("javax", "servlet", xs @ _*) => MergeStrategy.first
+      case PathList("javax", "activation", xs @ _*) => MergeStrategy.first
+      case PathList("com", "sun", "activation", "registries", xs @ _*) => MergeStrategy.first
+      case PathList("com", "sun", "activation", "viewers", xs @ _*) => MergeStrategy.first
       case PathList(ps @ _*) if ps.last endsWith ".html" => MergeStrategy.first
       case PathList(xs @ _*) if xs.last == "module-info.class" => MergeStrategy.first
       case PathList("org", "apache", "commons", xs @ _*) => MergeStrategy.first
@@ -56,6 +60,7 @@ lazy val root = (project in file(".")).
       case n if n.startsWith("application.conf") => MergeStrategy.concat
       case n if n.endsWith(".conf") => MergeStrategy.concat
       case meta(_) => MergeStrategy.first
+      case "META-INF/jpms.args" => MergeStrategy.discard
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
