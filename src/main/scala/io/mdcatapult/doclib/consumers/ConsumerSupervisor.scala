@@ -37,7 +37,7 @@ object ConsumerSupervisor extends App with LazyLogging {
   implicit val collection: MongoCollection[Document] = mongo.collection
 
   /** initialise queues **/
-  val upstream: Queue[SupervisorMsg] = new Queue[SupervisorMsg](config.getString("upstream.queue"))
+  val upstream: Queue[SupervisorMsg] = new Queue[SupervisorMsg](config.getString("upstream.queue"), Option(config.getString("op-rabbit.topic-exchange-name")))
   val subscription: SubscriptionRef = upstream.subscribe(new SupervisorHandler(upstream).handle, config.getInt("upstream.concurrent"))
 
 }
