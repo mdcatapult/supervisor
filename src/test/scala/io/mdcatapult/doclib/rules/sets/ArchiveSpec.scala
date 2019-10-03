@@ -1,17 +1,21 @@
 package io.mdcatapult.doclib.rules.sets
 
-import java.util.Date
+import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag, FileAttrs}
 import io.mdcatapult.klein.queue.Queue
-import org.mongodb.scala.bson.{BsonArray, BsonDateTime, BsonDocument, BsonDouble, BsonNull, BsonString}
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import org.mongodb.scala.bson.ObjectId
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
 import scala.concurrent.ExecutionContextExecutor
 
-class ArchiveSpec extends CommonSpec  {
+class ArchiveSpec extends CommonSpec {
 
   implicit override val config: Config = ConfigFactory.parseString(
     """
@@ -28,27 +32,36 @@ class ArchiveSpec extends CommonSpec  {
       |  }
       |}
     """.stripMargin)
-  implicit val system: ActorSystem = ActorSystem("scalatest", config)
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
 
-  "An Archive with no mimetype" should "return None " in {
-    val d = MongoDoc(List("doclib" → BsonArray()))
+
+  val dummy = DoclibDoc(
+    _id = new ObjectId(),
+    source = "dummt.txt",
+    hash = "01234567890",
+    derivative = false,
+    created = LocalDateTime.now(),
+    updated = LocalDateTime.now(),
+    mimetype = "text/plain",
+    attrs = FileAttrs(
+      path = "",
+      name= "",
+      mtime = LocalDateTime.now(),
+      ctime = LocalDateTime.now(),
+      atime = LocalDateTime.now(),
+      size = 1.toLong,
+    ),
+  )
+
+  "An Archive with an unmatched mimetype" should { "return None " in {
+    val d = dummy.copy(mimetype = "dummy/mimetype")
     val result = Archive.unapply(d)
     assert(result.isEmpty)
-  }
+  }}
 
-  "An Archive with an unmatched mimetype" should "return None " in {
-    val d = MongoDoc(List(
-      "mimetype" → BsonString("dummy/mimetype"),
-      "doclib" → BsonArray()))
-    val result = Archive.unapply(d)
-    assert(result.isEmpty)
-  }
-
-  "An un-started Archive" should "return an unarchive sendable" in {
-    val d = MongoDoc(List(
-      "mimetype" → BsonString("application/gzip"),
-      "doclib" → BsonArray()))
+  "An un-started Archive" should { "return an unarchive sendable" in {
+    val d = dummy.copy(mimetype = "application/gzip")
     val result = Archive.unapply(d)
     assert(result.isDefined)
     assert(result.get.isInstanceOf[Sendables])
@@ -56,38 +69,32 @@ class ArchiveSpec extends CommonSpec  {
     assert(result.get.length == 1)
     assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
     assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].queueName == "doclib.unarchive")
-  }
+  }}
 
-  "An started but incomplete Archive" should "return empty sendables" in {
-    val d = MongoDoc(List(
-      "mimetype" → BsonString("application/gzip"),
-      "doclib" → BsonArray(List(
-        BsonDocument(
-          "key" → BsonString("unarchived"),
-          "version" → BsonDouble(2.0),
-          "hash" → BsonString("123456"),
-          "started" → BsonDateTime(new Date()),
-          "ended" → BsonNull())
-      ))))
+  "An started but incomplete Archive" should { "return empty sendables" in {
+    val d = dummy.copy(mimetype = "application/gzip", doclib = List(
+      DoclibFlag(
+        key = "unarchived",
+        version = 2.0,
+        hash ="01234567890",
+        started = LocalDateTime.now()
+    )))
     val result = Archive.unapply(d)
     assert(result.isDefined)
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.isEmpty)
-  }
+  }}
 
-  "An completed Archive" should "return None" in {
-    val d = MongoDoc(List(
-      "mimetype" → BsonString("application/gzip"),
-      "doclib" → BsonArray(List(
-        BsonDocument(
-          "key" → BsonString("unarchived"),
-          "version" → BsonDouble(2.0),
-          "hash" → BsonString("123456"),
-          "started" → BsonDateTime(new Date()),
-          "ended" → BsonDateTime(new Date())
-          )
-      ))))
+  "An completed Archive" should { "return None" in {
+    val d = dummy.copy(mimetype = "application/gzip", doclib = List(
+      DoclibFlag(
+        key = "unarchived",
+        version = 2.0,
+        hash ="01234567890",
+        started = LocalDateTime.now(),
+        ended = Some(LocalDateTime.now())
+      )))
     val result = Archive.unapply(d)
     assert(result.isEmpty)
-  }
+  }}
 }

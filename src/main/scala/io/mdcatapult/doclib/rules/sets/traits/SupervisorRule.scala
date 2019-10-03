@@ -3,14 +3,14 @@ package io.mdcatapult.doclib.rules.sets.traits
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.doclib.util.DoclibFlags
 import io.mdcatapult.klein.queue.Queue
-import org.mongodb.scala.{Document ⇒ MongoDoc}
-import scala.concurrent.ExecutionContextExecutor
-import collection.JavaConverters._
 
-trait Rule {
+import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContextExecutor
+
+trait SupervisorRule {
 
   /**
     * Abstract unapply
@@ -20,7 +20,7 @@ trait Rule {
     * @param ex ExecutionContextExecutor
     * @return
     */
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables]
+  def unapply(doc: DoclibDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables]
 
   /**
     * tests if all flags for key have been completed
@@ -29,9 +29,8 @@ trait Rule {
     * @param config Config object to retrieve flag base path from
     * @return
     */
-  def completed(key: String)(implicit doc: MongoDoc, config: Config): Boolean =
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒
-      DoclibFlags.getFlag(r.getString("flag"), doc, config.getString("doclib.flags")).exists(_.ended.nonEmpty))
+  def completed(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
+    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).exists(_.ended.nonEmpty))
 
 
   /**
@@ -41,10 +40,8 @@ trait Rule {
     * @param config Config object to retrieve flag base path from
     * @return
     */
-  def started(key: String)(implicit doc: MongoDoc, config: Config): Boolean = {
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒
-      DoclibFlags.getFlag(r.getString("flag"), doc, config.getString("doclib.flags")).nonEmpty)
-  }
+  def started(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
+    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).nonEmpty)
 
 
   /**
@@ -59,10 +56,10 @@ trait Rule {
     * @return
     */
   def getSendables(key: String)
-                  (implicit doc: MongoDoc, config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+                  (implicit doc: DoclibDoc, config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Sendables =
     config.getConfigList(s"$key.required").asScala
-      .filterNot(r ⇒ DoclibFlags.hasFlag(r.getString("flag"), doc, config.getString("doclib.flags")))
+      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
       .map(r ⇒ r.getString("type") match {
         case "queue" ⇒ Queue[DoclibMsg](r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")

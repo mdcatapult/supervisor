@@ -2,8 +2,8 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.NER
-import org.mongodb.scala.{Document ⇒ MongoDoc}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
@@ -30,16 +30,16 @@ object Tabular extends NER {
     "application/vnd.sun.xml.calc.template",
   )
 
-  def unapply(doc: MongoDoc)
+  def unapply(doc: DoclibDoc)
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Option[Sendables] = {
-    implicit val document: MongoDoc = doc
+    implicit val document: DoclibDoc = doc
 
     /**
       * If doc is TSV ensure NER is completed first
       * @return
       */
-    def doTableProcessing: Option[Sendables] =
+    def doTableProcessing(): Option[Sendables] =
       if (started("supervisor.tabular.analyse") && !completed("supervisor.tabular.analyse"))
         Some(Sendables())
       else if (!started("supervisor.tabular.analyse"))
@@ -47,7 +47,7 @@ object Tabular extends NER {
       else
         None
 
-    def doConvertToTsv: Option[Sendables] =
+    def doConvertToTsv(): Option[Sendables] =
       if (started("supervisor.tabular.totsv") && !completed("supervisor.tabular.totsv"))
         Some(Sendables())
       else if (!started("supervisor.tabular.totsv"))
@@ -55,10 +55,10 @@ object Tabular extends NER {
       else
         None
 
-     if (doc.contains("mimetype") && validMimetypes.contains(doc.getString("mimetype")))
+     if (validMimetypes.contains(doc.mimetype))
        requiredNer match {
         case Some(sendables) ⇒ Some(sendables)
-        case None ⇒ doc.getString("mimetype") match {
+        case None ⇒ doc.mimetype match {
           case isTsv(_,_) ⇒ doTableProcessing
           case _ ⇒ doConvertToTsv
         }

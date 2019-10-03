@@ -1,17 +1,21 @@
 package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.klein.queue.Exchange
 import org.mongodb.scala.bson.{BsonArray, BsonBoolean, BsonDocument, BsonNull, BsonValue}
-import org.mongodb.scala.{Document ⇒ MongoDoc}
-import org.scalatest.{FlatSpec, Matchers}
+import org.mongodb.scala.{Document => MongoDoc}
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContextExecutor
 
-class CommonSpec extends FlatSpec with Matchers{
+class CommonSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+  akka.loggers = ["akka.testkit.TestEventListener"]
+  """))) with WordSpecLike with BeforeAndAfterAll with MockFactory {
   implicit val config: Config = ConfigFactory.parseString("")
 //    """
 //      |supervisor {
