@@ -16,6 +16,7 @@ lazy val root = (project in file(".")).
     version           := "0.1",
     scalaVersion      := "2.12.8",
     scalacOptions     += "-Ypartial-unification",
+    coverageEnabled   := true,
     resolvers         ++= Seq("MDC Nexus" at "http://nexus.mdcatapult.io/repository/maven-releases/"),
     credentials       += {
       val nexusPassword = sys.env.get("NEXUS_PASSWORD")
@@ -37,7 +38,7 @@ lazy val root = (project in file(".")).
       "org.typelevel" %% "cats-macros"                % catsVersion,
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
-      "io.mdcatapult.doclib" %% "common"              % "0.0.16",
+      "io.mdcatapult.doclib" %% "common"              % "0.0.17-SNAPSHOT",
       "org.apache.tika" % "tika-core"                 % tikaVersion,
       "org.apache.tika" % "tika-parsers"              % tikaVersion,
       "jakarta.ws.rs" % "jakarta.ws.rs-api"           % "2.1.4"

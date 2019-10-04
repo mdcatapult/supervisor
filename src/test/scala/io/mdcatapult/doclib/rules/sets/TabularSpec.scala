@@ -62,15 +62,7 @@ class TabularSpec extends CommonSpec {
     derivative = false,
     created = LocalDateTime.now(),
     updated = LocalDateTime.now(),
-    mimetype = "text/plain",
-    attrs = FileAttrs(
-      path = "",
-      name= "",
-      mtime = LocalDateTime.now(),
-      ctime = LocalDateTime.now(),
-      atime = LocalDateTime.now(),
-      size = 1.toLong,
-    ),
+    mimetype = "text/plain"
   )
 
 
