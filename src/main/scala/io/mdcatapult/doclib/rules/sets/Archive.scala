@@ -2,13 +2,13 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.rules.sets.traits.Rule
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
 
 import scala.concurrent.ExecutionContextExecutor
 
 
-object Archive extends Rule {
+object Archive extends SupervisorRule {
 
   val validMimetypes = List(
     "application/gzip",
@@ -48,15 +48,13 @@ object Archive extends Rule {
 
 
 
-  def unapply(doc: MongoDoc)
+  def unapply(doc: DoclibDoc)
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (!validMimetypes.contains(doc.getString("mimetype")))
-      None
-    else if (doc.contains("unarchived"))
+
+    implicit val document: DoclibDoc = doc
+
+    if (!validMimetypes.contains(doc.mimetype))
       None
     else if (completed("supervisor.archive"))
       None

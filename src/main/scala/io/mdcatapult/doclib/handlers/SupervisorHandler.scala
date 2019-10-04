@@ -5,29 +5,24 @@ import cats.data._
 import cats.instances.future._
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
-import io.mdcatapult.doclib.rules.legacy.{Engine ⇒ LegacyEngine}
+import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
+import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.klein.queue.Queue
 import org.bson.types.ObjectId
-import org.mongodb.scala.{Document, MongoCollection}
+import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.model.Updates.{combine, unset}
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
-class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem, ex: ExecutionContextExecutor, config: Config, collection: MongoCollection[Document]) {
+class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem, ex: ExecutionContextExecutor, config: Config, collection: MongoCollection[DoclibDoc]) {
 
   /**
     * construct the appropriate rule engine based on the supplied config
     */
-  val engine: RulesEngine =
-    if (config.getBoolean("doclib.legacy"))
-      new LegacyEngine()
-    else
-      new Engine()
-
+  val engine: RulesEngine = new Engine()
 
   /**
     * forcibly remove status for an exchange/queue to allow reprocessing
@@ -38,7 +33,7 @@ class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem
       collection.updateOne(
         equal("_id", new ObjectId(msg.id)),
         combine( msg.reset.getOrElse(List[String]()).map(ex ⇒
-          unset(f"${config.getString("doclib.flags")}.$ex")
+          unset(f"doclib.$ex")
         ):_* )
       ).toFutureOption()
     } else {
@@ -69,11 +64,9 @@ class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem
       _ ← OptionT(reset(msg))
       doc ← OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       sendables ← OptionT.fromOption(engine.resolve(doc))
-      pResult ← OptionT.fromOption(publish(doc.getObjectId("_id").toString, sendables))
+      pResult ← OptionT.fromOption(publish(doc._id.toHexString, sendables))
     } yield (sendables, pResult)).value.andThen({
-      case Success(r) ⇒
-        upstream.send(msg)
-        println(msg, r)
+      case Success(r) ⇒ println(msg, r)
       case Failure(e) ⇒ throw e
     })
   }

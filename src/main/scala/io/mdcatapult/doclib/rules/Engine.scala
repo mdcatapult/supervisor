@@ -2,13 +2,14 @@ package io.mdcatapult.doclib.rules
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.models.DoclibDoc
 import org.mongodb.scala.{Document ⇒ MongoDoc}
 import io.mdcatapult.doclib.rules.sets._
 
 import scala.concurrent.ExecutionContextExecutor
 
 trait RulesEngine {
-  def resolve(doc: MongoDoc): Option[Sendables]
+  def resolve(doc: DoclibDoc): Option[Sendables]
 }
 
 /**
@@ -20,7 +21,7 @@ trait RulesEngine {
   * @param config Config
   */
 class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor) extends RulesEngine {
-  def resolve(doc: MongoDoc): Option[Sendables] = doc match {
+  def resolve(doc: DoclibDoc): Option[Sendables] = doc match {
     case Archive(qs) ⇒ Some(qs.distinct)
     case Tabular(qs) ⇒ Some(qs.distinct)
     case HTML(qs) ⇒ Some(qs.distinct)

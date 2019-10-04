@@ -2,23 +2,21 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.rules.sets.traits.Rule
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
-object Image extends Rule {
+object Image extends SupervisorRule {
 
   val isImage: Regex = """(image/(.*))""".r
 
-  def unapply(doc: MongoDoc)
+  def unapply(doc: DoclibDoc)
              (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
   : Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (isImage.findFirstIn(doc.getString("mimetype")).isEmpty)
+    implicit val document: DoclibDoc = doc
+    if (isImage.findFirstIn(doc.mimetype).isEmpty)
       None
     else
       None
