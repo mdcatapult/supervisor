@@ -1,5 +1,3 @@
-
-
 lazy val configVersion = "1.3.2"
 lazy val akkaVersion = "2.5.25"
 lazy val catsVersion = "2.0.0"
@@ -7,6 +5,8 @@ lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
 lazy val tikaVersion = "1.21"
+lazy val doclibCommonVersion = "0.0.17-SNAPSHOT"
+
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
@@ -17,8 +17,9 @@ lazy val root = (project in file(".")).
     scalaVersion      := "2.12.8",
     scalacOptions     += "-Ypartial-unification",
     coverageEnabled   := true,
-    resolvers         ++= Seq("MDC Nexus" at "http://nexus.mdcatapult.io/repository/maven-releases/"),
-    credentials       += {
+    resolvers         ++= Seq("MDC Nexus Releases" at "http://nexus.mdcatapult.io/repository/maven-releases/",
+      "MDC Nexus Snapshots" at "http://nexus.mdcatapult.io/repository/maven-snapshots/"),
+    updateOptions     := updateOptions.value.withLatestSnapshots(false),    credentials       += {
       val nexusPassword = sys.env.get("NEXUS_PASSWORD")
       if ( nexusPassword.nonEmpty ) {
         Credentials("Sonatype Nexus Repository Manager", "nexus.mdcatapult.io", "gitlab", nexusPassword.get)
@@ -38,7 +39,7 @@ lazy val root = (project in file(".")).
       "org.typelevel" %% "cats-macros"                % catsVersion,
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
-      "io.mdcatapult.doclib" %% "common"              % "0.0.17-SNAPSHOT",
+      "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion,
       "org.apache.tika" % "tika-core"                 % tikaVersion,
       "org.apache.tika" % "tika-parsers"              % tikaVersion,
       "jakarta.ws.rs" % "jakarta.ws.rs-api"           % "2.1.4"
