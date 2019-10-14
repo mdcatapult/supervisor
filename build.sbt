@@ -16,7 +16,7 @@ lazy val root = (project in file(".")).
     version           := "0.1",
     scalaVersion      := "2.12.8",
     scalacOptions     += "-Ypartial-unification",
-    coverageEnabled   := true,
+    coverageEnabled   := false,
     resolvers         ++= Seq("MDC Nexus Releases" at "http://nexus.mdcatapult.io/repository/maven-releases/",
       "MDC Nexus Snapshots" at "http://nexus.mdcatapult.io/repository/maven-snapshots/"),
     updateOptions     := updateOptions.value.withLatestSnapshots(false),    credentials       += {
