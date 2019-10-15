@@ -2,9 +2,11 @@ package io.mdcatapult.doclib.rules
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import org.mongodb.scala.{Document => MongoDoc}
 import io.mdcatapult.doclib.rules.sets._
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
@@ -21,6 +23,9 @@ trait RulesEngine {
   * @param config Config
   */
 class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor) extends RulesEngine {
+
+  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
+
   def resolve(doc: DoclibDoc): Option[Sendables] = doc match {
     case Archive(qs) ⇒ Some(qs.distinct)
     case Tabular(qs) ⇒ Some(qs.distinct)

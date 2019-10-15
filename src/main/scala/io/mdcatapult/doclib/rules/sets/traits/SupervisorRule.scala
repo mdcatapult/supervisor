@@ -5,22 +5,21 @@ import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.Queue
+import io.mdcatapult.klein.queue.{Envelope, Queue, Registry}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContextExecutor
 
-trait SupervisorRule {
+trait SupervisorRule[T <: Envelope] {
 
   /**
     * Abstract unapply
     * @param doc Document to be matched
     * @param config Config
-    * @param sys ActorSystem
-    * @param ex ExecutionContextExecutor
+    * @param registry Registry
     * @return
     */
-  def unapply(doc: DoclibDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables]
+  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables]
 
   /**
     * tests if all flags for key have been completed
@@ -51,17 +50,16 @@ trait SupervisorRule {
     * @param key String ofg the config path
     * @param doc Document to check
     * @param config Config to retrieve settings from
-    * @param sys Actor System
-    * @param ex Execution Context
+    * @param registry Registry
     * @return
     */
   def getSendables(key: String)
-                  (implicit doc: DoclibDoc, config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+                  (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
   : Sendables =
     config.getConfigList(s"$key.required").asScala
       .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
       .map(r ⇒ r.getString("type") match {
-        case "queue" ⇒ Queue[DoclibMsg](r.getString("route"))
+        case "queue" ⇒ registry.get(r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 

@@ -2,8 +2,10 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
@@ -11,7 +13,7 @@ import scala.util.matching.Regex
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends NER {
+object Tabular extends NER[DoclibMsg] {
 
 
   val isTsv: Regex =
@@ -31,7 +33,7 @@ object Tabular extends NER {
   )
 
   def unapply(doc: DoclibDoc)
-             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+             (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[Sendables] = {
     implicit val document: DoclibDoc = doc
 
@@ -39,19 +41,11 @@ object Tabular extends NER {
       * If doc is TSV ensure NER is completed first
       * @return
       */
-    def doTableProcessing(): Option[Sendables] =
-      if (started("supervisor.tabular.analyse") && !completed("supervisor.tabular.analyse"))
+    def doTask(key: String): Option[Sendables] =
+      if (started(key) && !completed(key))
         Some(Sendables())
-      else if (!started("supervisor.tabular.analyse"))
-        Some(getSendables("supervisor.tabular.analyse"))
-      else
-        None
-
-    def doConvertToTsv(): Option[Sendables] =
-      if (started("supervisor.tabular.totsv") && !completed("supervisor.tabular.totsv"))
-        Some(Sendables())
-      else if (!started("supervisor.tabular.totsv"))
-        Some(getSendables("supervisor.tabular.totsv"))
+      else if (!started(key))
+        Some(getSendables(key))
       else
         None
 
@@ -59,8 +53,8 @@ object Tabular extends NER {
        requiredNer match {
         case Some(sendables) ⇒ Some(sendables)
         case None ⇒ doc.mimetype match {
-          case isTsv(_,_) ⇒ doTableProcessing
-          case _ ⇒ doConvertToTsv
+          case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse")
+          case _ ⇒ doTask("supervisor.tabular.totsv")
         }
       }
      else None

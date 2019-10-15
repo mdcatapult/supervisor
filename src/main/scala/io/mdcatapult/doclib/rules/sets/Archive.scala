@@ -2,13 +2,15 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
 
-object Archive extends SupervisorRule {
+object Archive extends SupervisorRule[DoclibMsg] {
 
   val validMimetypes = List(
     "application/gzip",
@@ -49,7 +51,7 @@ object Archive extends SupervisorRule {
 
 
   def unapply(doc: DoclibDoc)
-             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+             (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[Sendables] = {
 
     implicit val document: DoclibDoc = doc
