@@ -2,12 +2,14 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
-object Document extends NER {
+object Document extends NER[DoclibMsg] {
 
   val validMimetypes: List[String] = List(
     "application/msword",
@@ -34,7 +36,7 @@ object Document extends NER {
   )
 
   def unapply(doc: DoclibDoc)
-             (implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor)
+             (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[Sendables] = {
     implicit val document: DoclibDoc = doc
     if (validMimetypes.contains(doc.mimetype))

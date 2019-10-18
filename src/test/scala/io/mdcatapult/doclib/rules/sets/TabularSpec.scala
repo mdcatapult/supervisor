@@ -8,7 +8,7 @@ import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag, FileAttrs}
-import io.mdcatapult.klein.queue.Queue
+import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
@@ -54,6 +54,7 @@ class TabularSpec extends CommonSpec {
     """.stripMargin)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -82,7 +83,7 @@ class TabularSpec extends CommonSpec {
     assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
     assert(result.get.forall(s ⇒
       List("doclib.ner.chemblactivityterms", "doclib.ner.chemicalentities")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].queueName)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
   "An un-started Tabular doc with partially completed NER" should { "return empty sendables" in {
@@ -126,7 +127,7 @@ class TabularSpec extends CommonSpec {
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
     assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].queueName == "doclib.ner.chemicalentities")
+    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.ner.chemicalentities")
   }}
 
   "An NER complete TSV doc that has not been started" should { "return 1 table process sendables" in {
@@ -153,7 +154,7 @@ class TabularSpec extends CommonSpec {
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
     assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].queueName == "doclib.tabular.analysis")
+    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.tabular.analysis")
   }}
 
   "An NER complete TSV doc that has been started but not completed" should { "return empty sendables" in {
@@ -239,7 +240,7 @@ class TabularSpec extends CommonSpec {
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
     assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].queueName == "doclib.tabular.totsv")
+    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.tabular.totsv")
   }}
 
   "An NER complete Tabular doc that has been started but not completed" should { "return empty sendables" in {

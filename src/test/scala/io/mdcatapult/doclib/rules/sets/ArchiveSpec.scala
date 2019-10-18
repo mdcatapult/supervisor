@@ -8,7 +8,7 @@ import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag, FileAttrs}
-import io.mdcatapult.klein.queue.Queue
+import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
@@ -34,7 +34,7 @@ class ArchiveSpec extends CommonSpec {
     """.stripMargin)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
-
+  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -60,7 +60,7 @@ class ArchiveSpec extends CommonSpec {
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
     assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].queueName == "doclib.unarchive")
+    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.unarchive")
   }}
 
   "An started but incomplete Archive" should { "return empty sendables" in {
