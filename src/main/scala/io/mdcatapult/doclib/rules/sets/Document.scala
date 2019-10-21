@@ -2,13 +2,16 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
-object Document extends Rule {
+object Document extends NER[DoclibMsg] {
 
-  val validDocuments: List[String] = List(
+  val validMimetypes: List[String] = List(
     "application/msword",
     "application/pdf",
     "application/rtf",
@@ -32,13 +35,13 @@ object Document extends Rule {
     "application/x-msaccess"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (!validDocuments.contains(doc.getString("mimetype")))
-      None
+  def unapply(doc: DoclibDoc)
+             (implicit config: Config, registry: Registry[DoclibMsg])
+  : Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+    if (validMimetypes.contains(doc.mimetype))
+      requiredNer
     else
-      Some(withNer(Sendables()))
+      None
   }
 }

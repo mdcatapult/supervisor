@@ -3,8 +3,9 @@ package io.mdcatapult.doclib.rules.sets
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.klein.queue._
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
@@ -12,28 +13,50 @@ import scala.util.matching.Regex
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends Rule {
+object Tabular extends NER[DoclibMsg] {
 
 
-  val isTabular: Regex =
-    """^((application)/(vnd.(lotus-1-2-3|ms-excel.*|oasis.*|openxmlformats-officedocument.spreadsheetml.*|stardivision.*|sun.xml.calc.*)))$""".r
+  val isTsv: Regex =
+    """^(text/(csv|tab.*))$""".r
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (completed("tabular"))
-      None
-    else if (started("tabular"))
-      Some(Sendables()) // ensures requeue with supervisor
-    else
-      doc.getString("mimetype") match {
-        case isTabular(v, _, _, _) ⇒ Some(withNer(
-          Sendables(
-            Queue[DoclibMsg]("doclib.tabular")
-          )))
-        case _ ⇒ None
+  val validMimetypes = List(
+    "text/csv",
+    "text/tab-separated-values",
+    "application/vnd.lotus-1-2-3",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-excel.sheet.macroenabled.12",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    "application/vnd.stardivision.calc",
+    "application/vnd.sun.xml.calc",
+    "application/vnd.sun.xml.calc.template",
+  )
+
+  def unapply(doc: DoclibDoc)
+             (implicit config: Config, registry: Registry[DoclibMsg])
+  : Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+
+    /**
+      * If doc is TSV ensure NER is completed first
+      * @return
+      */
+    def doTask(key: String): Option[Sendables] =
+      if (started(key) && !completed(key))
+        Some(Sendables())
+      else if (!started(key))
+        Some(getSendables(key))
+      else
+        None
+
+     if (validMimetypes.contains(doc.mimetype))
+       requiredNer match {
+        case Some(sendables) ⇒ Some(sendables)
+        case None ⇒ doc.mimetype match {
+          case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse")
+          case _ ⇒ doTask("supervisor.tabular.totsv")
+        }
       }
+     else None
   }
-
 }

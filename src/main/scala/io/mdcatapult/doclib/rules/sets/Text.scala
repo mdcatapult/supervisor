@@ -2,11 +2,14 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
-object Text extends Rule {
+object Text extends NER[DoclibMsg] {
 
   val validDocuments: List[String] = List(
     "message/news", "message/rfc822", "text/aln", "text/calendar", "text/css", "text/fasta", "text/hkl",
@@ -19,18 +22,14 @@ object Text extends Rule {
     "text/x-shellscript", "text/x-tcl", "text/x-tex"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (!validDocuments.contains(doc.getString("mimetype")))
-      None
-    else if (completed("text"))
-      None
-    else if (started("text"))
-      Some(withNer(Sendables())) // ensures requeue with supervisor
+  def unapply(doc: DoclibDoc)
+             (implicit config: Config, registry: Registry[DoclibMsg])
+  : Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+    if (validDocuments.contains(doc.mimetype))
+      requiredNer
     else
-      Some(withNer(Sendables()))
+      None
   }
 
 }
