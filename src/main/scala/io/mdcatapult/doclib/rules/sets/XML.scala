@@ -2,11 +2,14 @@ package io.mdcatapult.doclib.rules.sets
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import org.mongodb.scala.{Document ⇒ MongoDoc}
+import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
 
-object XML extends Rule {
+object XML extends NER[DoclibMsg] {
 
 
   val validDocuments: List[String] = List(
@@ -21,17 +24,12 @@ object XML extends Rule {
     "xml/dtd"
   )
 
-  def unapply(doc: MongoDoc)(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor): Option[Sendables] = {
-    implicit val document: MongoDoc = doc
-    if (!doc.contains("mimetype"))
-      None
-    else if (!validDocuments.contains(doc.getString("mimetype")))
-      None
-    else if (completed("xml"))
-      None
-    else if (started("xml"))
-      Some(withNer(Sendables())) // ensures requeue with supervisor
+  def unapply(doc: DoclibDoc)
+             (implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+    if (validDocuments.contains(doc.mimetype))
+      requiredNer
     else
-      Some(withNer(Sendables()))
+      None
   }
 }
