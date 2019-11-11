@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.sets
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import io.mdcatapult.doclib.rules.sets.traits.{NER, TSVExtract}
+import io.mdcatapult.doclib.rules.sets.traits.{TSVExtract, TabularAnalysis}
 import io.mdcatapult.klein.queue.Registry
 
 import scala.util.matching.Regex
@@ -11,7 +11,7 @@ import scala.util.matching.Regex
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
+object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] {
 
 
   val isTsv: Regex =
@@ -45,7 +45,7 @@ object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
   }
 
   /**
-    * Queue to tsv > ner > analysis
+    * Queue to tsv > analysis
     *
     * @param doc Document to be matched
     * @param config Config
@@ -60,24 +60,10 @@ object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
      if (validMimetypes.contains(doc.mimetype)) {
        requiredExtraction match {
          case Some(sendables) ⇒ Some(sendables)
-         case _ =>  doNEROrAnalyse
+         case _ =>  requiredAnalysis
        }
      }
      else None
   }
 
-  /**
-    * Do NER or tabular analysis
-    * @param doc
-    * @param config
-    * @param registry
-    * @return
-    */
-  private def doNEROrAnalyse()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
-    case Some(sendables) ⇒ Some(sendables)
-    case None ⇒ doc.mimetype match {
-      case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse", doc)
-      case _ ⇒ None
-    }
-  }
 }
