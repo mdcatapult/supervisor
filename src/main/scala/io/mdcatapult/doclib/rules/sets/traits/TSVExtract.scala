@@ -8,7 +8,7 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
 
   /**
-    * convenience function to automatically test if NER required and return appropriate sendables
+    * convenience function to automatically test if TSV extraction required and return appropriate sendables
     * @param doc Document To Test
     * @param config  Config
     * @param registry Registry

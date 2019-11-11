@@ -1,13 +1,11 @@
 package io.mdcatapult.doclib.rules.sets
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.{NER, TSVExtract}
 import io.mdcatapult.klein.queue.Registry
 
-import scala.concurrent.ExecutionContextExecutor
 import scala.util.matching.Regex
 
 /**
@@ -62,13 +60,20 @@ object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
      if (validMimetypes.contains(doc.mimetype)) {
        requiredExtraction match {
          case Some(sendables) ⇒ Some(sendables)
-         case _ =>  doNER
+         case _ =>  doNEROrAnalyse
        }
      }
      else None
   }
 
-  def doNER()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
+  /**
+    * Do NER or tabular analysis
+    * @param doc
+    * @param config
+    * @param registry
+    * @return
+    */
+  def doNEROrAnalyse()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
     case Some(sendables) ⇒ Some(sendables)
     case None ⇒ doc.mimetype match {
       case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse", doc)
