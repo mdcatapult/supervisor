@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import io.mdcatapult.doclib.rules.sets.traits.NER
+import io.mdcatapult.doclib.rules.sets.traits.{NER, TSVExtract}
 import io.mdcatapult.klein.queue.Registry
 
 import scala.concurrent.ExecutionContextExecutor
@@ -13,7 +13,7 @@ import scala.util.matching.Regex
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends NER[DoclibMsg] {
+object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
 
 
   val isTsv: Regex =
@@ -32,31 +32,47 @@ object Tabular extends NER[DoclibMsg] {
     "application/vnd.sun.xml.calc.template",
   )
 
+  /**
+    * If doc is TSV ensure NER is completed first
+    * @return
+    */
+  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+    if (started(key) && !completed(key))
+      Some(Sendables())
+    else if (!started(key))
+      Some(getSendables(key))
+    else
+      None
+  }
+
+  /**
+    * Queue to tsv > ner > analysis
+    *
+    * @param doc Document to be matched
+    * @param config Config
+    * @param registry Registry
+    * @return Option[Sendables] List of Queue to process this doc
+    */
   def unapply(doc: DoclibDoc)
-             (implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[Sendables] = {
+  (implicit config: Config, registry: Registry[DoclibMsg])
+        : Option[Sendables] = {
     implicit val document: DoclibDoc = doc
 
-    /**
-      * If doc is TSV ensure NER is completed first
-      * @return
-      */
-    def doTask(key: String): Option[Sendables] =
-      if (started(key) && !completed(key))
-        Some(Sendables())
-      else if (!started(key))
-        Some(getSendables(key))
-      else
-        None
-
-     if (validMimetypes.contains(doc.mimetype))
-       requiredNer match {
-        case Some(sendables) ⇒ Some(sendables)
-        case None ⇒ doc.mimetype match {
-          case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse")
-          case _ ⇒ doTask("supervisor.tabular.totsv")
-        }
-      }
+     if (validMimetypes.contains(doc.mimetype)) {
+       requiredExtraction match {
+         case Some(sendables) ⇒ Some(sendables)
+         case _ =>  doNER
+       }
+     }
      else None
+  }
+
+  def doNER()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
+    case Some(sendables) ⇒ Some(sendables)
+    case None ⇒ doc.mimetype match {
+      case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse", doc)
+      case _ ⇒ doTask("supervisor.tabular.totsv", doc)
+    }
   }
 }

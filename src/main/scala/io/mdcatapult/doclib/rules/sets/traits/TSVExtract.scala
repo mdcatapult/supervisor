@@ -5,7 +5,7 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.{Envelope, Registry}
 
-trait NER[T <: Envelope] extends SupervisorRule[T]{
+trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
 
   /**
     * convenience function to automatically test if NER required and return appropriate sendables
@@ -14,12 +14,11 @@ trait NER[T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredNer()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    if (!started("supervisor.ner"))
-      Some(getSendables("supervisor.ner"))
-    else if (!completed("supervisor.ner"))
+  def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
+    if (!started("supervisor.tabular.totsv"))
+      Some(getSendables("supervisor.tabular.totsv"))
+    else if (!completed("supervisor.tabular.totsv"))
       Some(Sendables())
     else None
   }
-
 }
