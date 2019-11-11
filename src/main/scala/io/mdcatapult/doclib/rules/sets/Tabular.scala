@@ -73,11 +73,11 @@ object Tabular extends NER[DoclibMsg] with TSVExtract[DoclibMsg] {
     * @param registry
     * @return
     */
-  def doNEROrAnalyse()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
+  private def doNEROrAnalyse()(implicit doc: DoclibDoc, config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =  requiredNer match {
     case Some(sendables) ⇒ Some(sendables)
     case None ⇒ doc.mimetype match {
       case isTsv(_,_) ⇒ doTask("supervisor.tabular.analyse", doc)
-      case _ ⇒ doTask("supervisor.tabular.totsv", doc)
+      case _ ⇒ None
     }
   }
 }

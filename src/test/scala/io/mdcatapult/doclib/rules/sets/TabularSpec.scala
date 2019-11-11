@@ -152,39 +152,6 @@ class TabularSpec extends CommonSpec {
     assert(result.get.isEmpty)
   }}
 
-  "doNEROrAnalyse with an extracted Tabular doc with completed NER" should { "should be analysed" in {
-    implicit val d = dummy.copy(
-      mimetype = "text/tab-separated-values",
-      source = "/dummy/path/to/dummy/file",
-      doclib = List(
-        DoclibFlag(
-          key = "tabular.totsv",
-          version = 2.0,
-          hash = "dev",
-          started = LocalDateTime.now,
-          ended = Some(LocalDateTime.now())),
-        DoclibFlag(
-          key = "ner.chemblactivityterms",
-          version = 2.0,
-          hash = "01234567890",
-          started = LocalDateTime.now(),
-          ended = Some(LocalDateTime.now())),
-        DoclibFlag(
-          key = "ner.chemicalentities",
-          version = 2.0,
-          hash ="01234567890",
-          started = LocalDateTime.now(),
-          ended = Some(LocalDateTime.now()))
-      ))
-    val result = Tabular.doNEROrAnalyse()
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.tabular.analysis")
-  }}
-
   "An extracted Tabular doc with partially missing NER" should { "return 1 NER sendable" in {
     val d = dummy.copy(
       mimetype = "text/tab-separated-values",
