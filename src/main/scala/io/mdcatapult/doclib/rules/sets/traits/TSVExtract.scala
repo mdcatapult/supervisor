@@ -5,6 +5,10 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.{Envelope, Registry}
 
+/**
+  * Check if spreadsheet formatted document is valid for extraction
+  * @tparam T
+  */
 trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
 
   val extractMimetypes = List(
