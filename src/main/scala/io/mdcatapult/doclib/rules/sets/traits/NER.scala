@@ -15,7 +15,7 @@ trait NER[T <: Envelope] extends SupervisorRule[T]{
     "text/x-dsrc", "text/x-fortran", "text/x-gawk", "text/x-java", "text/x-lisp", "text/x-literate-haskell",
     "text/x-m4", "text/x-makefile", "text/x-msdos-batch", "text/x-objective-c", "text/x-pascal", "text/x-perl",
     "text/x-php", "text/x-po", "text/x-python", "text/x-ruby", "text/x-scala", "text/x-sfv", "text/x-sh",
-    "text/x-shellscript", "text/x-tcl", "text/x-tex"
+    "text/x-shellscript", "text/x-tcl", "text/x-tex", "text/tab-separated-values"
   )
   /**
     * convenience function to automatically test if NER required and return appropriate sendables
