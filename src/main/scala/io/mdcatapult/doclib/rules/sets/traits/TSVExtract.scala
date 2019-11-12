@@ -7,6 +7,20 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
 
+  val extractMimetypes = List(
+    "text/csv",
+    // We are converting to tsv so this doesn't need converted
+    //"text/tab-separated-values",
+    "application/vnd.lotus-1-2-3",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-excel.sheet.macroenabled.12",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    "application/vnd.stardivision.calc",
+    "application/vnd.sun.xml.calc",
+    "application/vnd.sun.xml.calc.template",
+  )
+
   /**
     * convenience function to automatically test if TSV extraction required and return appropriate sendables
     * @param doc Document To Test
@@ -15,10 +29,9 @@ trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
     * @return
     */
   def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    if (!started("supervisor.tabular.totsv"))
-      Some(getSendables("supervisor.tabular.totsv"))
-    else if (!completed("supervisor.tabular.totsv"))
-      Some(Sendables())
-    else None
+    extractMimetypes.contains(doc.mimetype) match {
+      case true => doTask("supervisor.tabular.totsv", doc)
+      case false => None
+    }
   }
 }

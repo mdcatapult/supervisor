@@ -8,6 +8,20 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 trait TabularAnalysis[T <: Envelope] extends SupervisorRule[T] {
 
+
+  val analyseMimetypes = List(
+    "text/csv",
+    "text/tab-separated-values",
+    "application/vnd.lotus-1-2-3",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-excel.sheet.macroenabled.12",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    "application/vnd.stardivision.calc",
+    "application/vnd.sun.xml.calc",
+    "application/vnd.sun.xml.calc.template",
+  )
+
   /**
     * convenience function to automatically test if tabular analysis is required and return appropriate sendables
     *
@@ -17,11 +31,10 @@ trait TabularAnalysis[T <: Envelope] extends SupervisorRule[T] {
     * @return
     */
   def requiredAnalysis()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    if (!started("supervisor.tabular.analyse"))
-      Some(getSendables("supervisor.tabular.analyse"))
-    else if (!completed("supervisor.tabular.analyse"))
-      Some(Sendables())
-    else None
+    analyseMimetypes.contains(doc.mimetype) match {
+      case true => doTask("supervisor.tabular.analyse", doc)
+      case false => None
+    }
   }
 
 }

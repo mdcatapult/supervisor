@@ -84,7 +84,7 @@ class TabularSpec extends CommonSpec {
 
   "An Tabular doc with partially completed extraction" should { "return empty sendables" in {
     val d = dummy.copy(
-      mimetype = "text/tab-separated-values",
+      mimetype = "text/csv",
       source = "/dummy/path/to/dummy/file",
       doclib = List(
         DoclibFlag(
@@ -148,7 +148,7 @@ class TabularSpec extends CommonSpec {
     assert(result.get.isEmpty)
   }}
 
-  "A Tabular doc with no Extraction flag 'tabular.totsv' and partially missing analysis and" should { "return a tabular.totsv sendable" in {
+  "A Tabular doc with no Extraction flag 'tabular.totsv' and partially missing analysis" should { "return empty sendable" in {
     // TODO This might not be a realistic test case but is there for completeness. Should the existing flag be reset. What does it mean
     //  for analysis to be partially done but the spreadsheet not extracted?
     val d = dummy.copy(
@@ -165,10 +165,7 @@ class TabularSpec extends CommonSpec {
     val result = Tabular.unapply(d)
     assert(result.isDefined)
     assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "doclib.tabular.totsv")
+    assert(result.get.isEmpty)
   }}
 
   "A complete TSV doc" should { "return None" in {
