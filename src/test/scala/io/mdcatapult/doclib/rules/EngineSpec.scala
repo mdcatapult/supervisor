@@ -6,7 +6,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.doclib.rules.sets.{Archive, CommonSpec, Document, Sendables, Tabular, Text}
+import io.mdcatapult.doclib.rules.sets.{Archive, CommonSpec, Document, Sendables, Tabular, Text, XML}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.OptionValues
@@ -227,6 +227,18 @@ class EngineSpec extends CommonSpec {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val result = engine.resolve(doc)
       assert(result.isEmpty)
+    })
+  }}
+
+  "An XML doc" should { "return ner sendables" in {
+    XML.validDocuments.foreach(mimetype => {
+      val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
+      val result = engine.resolve(doc)
+      assert(result.get.length == 3)
+      assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.get.forall(s ⇒
+        List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
+          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
   }}
 

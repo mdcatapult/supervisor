@@ -236,4 +236,11 @@ class TabularSpec extends CommonSpec {
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
+  "A text" should { "not be analysed" in {
+    implicit val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file")
+    val result = Tabular.requiredAnalysis()
+    assert(result.isEmpty)
+
+  }}
+
 }
