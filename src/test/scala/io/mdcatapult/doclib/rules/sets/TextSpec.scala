@@ -93,19 +93,6 @@ class TextSpec extends CommonSpec {
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "A new tabular doc " should { "return 3 NER sendables" in {
-    val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
-    val result = Text.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 3)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
-      List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
-  }}
-
   "A  text doc which has been NER'd" should { "not be NER'd again" in {
     val docNER = List(
       DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),

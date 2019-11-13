@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.sets
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import io.mdcatapult.doclib.rules.sets.traits.{TSVExtract, TabularAnalysis}
+import io.mdcatapult.doclib.rules.sets.traits.{NER, TSVExtract, TabularAnalysis}
 import io.mdcatapult.klein.queue.Registry
 
 import scala.util.matching.Regex
@@ -11,28 +11,34 @@ import scala.util.matching.Regex
 /**
   * Rule for files that are composed of tabular data
   */
-object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] {
+object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] with NER[DoclibMsg] {
 
 
-//  val isTsv: Regex =
-//    """^(text/(csv|tab.*))$""".r
-
-//  /**
-//    * If doc is TSV ensure NER is completed first
-//    * @return
-//    */
-//  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
-//    implicit val document: DoclibDoc = doc
-//    if (started(key) && !completed(key))
-//      Some(Sendables())
-//    else if (!started(key))
-//      Some(getSendables(key))
-//    else
-//      None
-//  }
+  val isTsv: Regex =
+    """^(text/(tab.*))$""".r
 
   /**
-    * Queue to tsv > analysis
+    * Do NER should before analysis
+    * @param doc
+    * @param config
+    * @param registry
+    * @return
+    */
+  def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
+    // Note: we can't use the NER trait here since this has to happen in order and we don't want to have to rely on
+    // the order of checks in the Engine.
+    implicit val document: DoclibDoc = doc
+    if (isTsv.findFirstIn(doc.mimetype).nonEmpty) {
+      requiredNer match {
+        case Some(sendables) ⇒ Some(sendables)
+        case _ => requiredAnalysis
+      }
+    } else
+      None
+  }
+
+  /**
+    * Queue to tsv > NER > analysis
     *
     * @param doc Document to be matched
     * @param config Config
@@ -46,7 +52,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] {
 
     requiredExtraction match {
       case Some(sendables) ⇒ Some(sendables)
-      case _ =>  requiredAnalysis
+      case _  =>  nerOrAnalysis(doc)
     }
   }
 
