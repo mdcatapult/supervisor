@@ -25,8 +25,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     * @return
     */
   def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
-    // Note: we can't use the NER trait here since this has to happen in order and we don't want to have to rely on
-    // the order of checks in the Engine.
+    // NER first then analysis but only on text/tab-*
     implicit val document: DoclibDoc = doc
     if (isTsv.findFirstIn(doc.mimetype).nonEmpty) {
       requiredNer match {
