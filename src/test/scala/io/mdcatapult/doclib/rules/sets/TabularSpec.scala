@@ -189,17 +189,11 @@ class TabularSpec extends CommonSpec {
     assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "tabular.totsv")
   }}
 
-  "A complete Tabular doc" should { "return None" in {
+  "An extracted spreadsheet" should { "return None" in {
     val d = dummy.copy(
       mimetype = "application/vnd.ms-excel",
       source = "/dummy/path/to/dummy/file",
       doclib = List(
-        DoclibFlag(
-          key = "tabular.analysis",
-          version = 2.0,
-          hash = "01234567890",
-          started = LocalDateTime.now(),
-          ended = Some(LocalDateTime.now())),
         DoclibFlag(
           key = "tabular.totsv",
           version = 2.0,
@@ -207,7 +201,7 @@ class TabularSpec extends CommonSpec {
           started = LocalDateTime.now(),
           ended = Some(LocalDateTime.now())
         )))
-    val result = Archive.unapply(d)
+    val result = Tabular.unapply(d)
     assert(result.isEmpty)
   }}
 
@@ -224,7 +218,7 @@ class TabularSpec extends CommonSpec {
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "A  text doc which has been NER'd" should { "not be NER'd again" in {
+  "A  tabular doc which has been NER'd" should { "be anlysed and not NER'd" in {
     val docNER = List(
       DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
       DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
