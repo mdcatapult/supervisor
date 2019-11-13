@@ -22,7 +22,7 @@ trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
     "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
     "application/vnd.stardivision.calc",
     "application/vnd.sun.xml.calc",
-    "application/vnd.sun.xml.calc.template",
+    "application/vnd.sun.xml.calc.template"
   )
 
   /**
