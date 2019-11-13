@@ -218,7 +218,7 @@ class TabularSpec extends CommonSpec {
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "A  tabular doc which has been NER'd" should { "be anlysed and not NER'd" in {
+  "A  tabular doc which has been NER'd" should { "be analysed and not NER'd" in {
     val docNER = List(
       DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
       DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
