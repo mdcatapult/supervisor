@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import cats.data._
 import cats.instances.future._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
@@ -17,7 +18,8 @@ import org.mongodb.scala.model.Updates.{combine, unset}
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
-class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem, ex: ExecutionContextExecutor, config: Config, collection: MongoCollection[DoclibDoc]) {
+class SupervisorHandler(upstream: Queue[SupervisorMsg])
+                       (implicit as: ActorSystem, ex: ExecutionContextExecutor, config: Config, collection: MongoCollection[DoclibDoc]) extends LazyLogging {
 
   /**
     * construct the appropriate rule engine based on the supplied config
@@ -66,7 +68,7 @@ class SupervisorHandler(upstream: Queue[SupervisorMsg])(implicit as: ActorSystem
       sendables ← OptionT.fromOption(engine.resolve(doc))
       pResult ← OptionT.fromOption(publish(doc._id.toHexString, sendables))
     } yield (sendables, pResult)).value.andThen({
-      case Success(r) ⇒ println(msg, r)
+      case Success(r) ⇒ logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
       case Failure(e) ⇒ throw e
     })
   }
