@@ -2,18 +2,23 @@ package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
+import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class TabularSpec extends CommonSpec {
+class TabularSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+  akka.loggers = ["akka.testkit.TestEventListener"]
+  """)))  with ImplicitSender with WordSpecLike {
 
-  implicit override val config: Config = ConfigFactory.parseString(
+  implicit val config: Config = ConfigFactory.parseString(
     """
       |doclib {
       |  flags: "doclib"
@@ -35,6 +40,20 @@ class TabularSpec extends CommonSpec {
       |      }]
       |    }
       |  }
+      |  text: {
+      |    required: [{
+      |       flag: "rawtext"
+      |       route: "rawtext"
+      |       type: "queue"
+      |    }]
+      |  }
+      |  image_intermediate: {
+      |    required: [{
+      |      flag: "pdf_intermediate"
+      |      route: "pdf_intermediates"
+      |      type: "queue"
+      |    }]
+      |  }
       |  ner: {
       |    required: [{
       |      flag: "ner.chemblactivityterms"
@@ -51,7 +70,30 @@ class TabularSpec extends CommonSpec {
       |    }]
       |  }
       |}
+      |op-rabbit {
+      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
+      |  default-channel-dispatcher {
+      |    type = Dispatcher
+      |    executor = "fork-join-executor"
+      |    fork-join-executor {
+      |      parallelism-min = 2
+      |      parallelism-factor = 2.0
+      |      parallelism-max = 4
+      |    }
+      |    throughput = 1
+      |  }
+      |  connection {
+      |    virtual-host = "doclib"
+      |    hosts = ["localhost"]
+      |    username = "doclib"
+      |    password = "doclib"
+      |    port = 5672
+      |    ssl = false
+      |    connection-timeout = 3s
+      |  }
+      |}
     """.stripMargin)
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
@@ -65,6 +107,13 @@ class TabularSpec extends CommonSpec {
     updated = LocalDateTime.now(),
     mimetype = "text/plain"
   )
+
+  val consumerVersion = ConsumerVersion(
+    number = "0.0.1",
+    major = 0,
+    minor = 0,
+    patch = 1,
+    hash = "1234567890")
 
 
   "A Tabular doc with an unmatched mimetype" should { "return None " in {
@@ -90,8 +139,7 @@ class TabularSpec extends CommonSpec {
       doclib = List(
         DoclibFlag(
           key = "tabular.totsv",
-          version = 2.0,
-          hash = "dev",
+          version = consumerVersion,
           started = LocalDateTime.now,
           ended = None
         )
@@ -110,31 +158,27 @@ class TabularSpec extends CommonSpec {
       doclib = List(
         DoclibFlag(
           key = "tabular.totsv",
-          version = 2.0,
-          hash = "dev",
+          version = consumerVersion,
           started = LocalDateTime.now,
           ended = Some(LocalDateTime.now())),
       DoclibFlag(
         key = "ner.chemblactivityterms",
-        version = 2.0,
-        hash = "dev",
+        version = consumerVersion,
         started = LocalDateTime.now,
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "ner.chemicalentities",
-        version = 2.0,
-        hash = "dev",
+        version = consumerVersion,
         started = LocalDateTime.now,
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "ner.chemicalidentifiers",
-        version = 2.0, hash = "dev",
+        version = consumerVersion,
         started = LocalDateTime.now,
         ended = Some(LocalDateTime.now)),
         DoclibFlag(
           key = "tabular.analysis",
-          version = 2.0,
-          hash ="01234567890",
+          version = consumerVersion,
           started = LocalDateTime.now())
       ))
     val result = Tabular.requiredAnalysis()
@@ -150,14 +194,12 @@ class TabularSpec extends CommonSpec {
       doclib = List(
         DoclibFlag(
           key = "tabular.totsv",
-          version = 2.0,
-          hash = "dev",
+          version = consumerVersion,
           started = LocalDateTime.now,
           ended = Some(LocalDateTime.now)),
         DoclibFlag(
           key = "tabular.analysis",
-          version = 2.0,
-          hash ="01234567890",
+          version = consumerVersion,
           started = LocalDateTime.now(),
           ended = Some(LocalDateTime.now())),
       ))
@@ -175,8 +217,7 @@ class TabularSpec extends CommonSpec {
       doclib = List(
         DoclibFlag(
           key = "tabular.analysis",
-          version = 2.0,
-          hash ="01234567890",
+          version = consumerVersion,
           started = LocalDateTime.now(),
           ended = Some(LocalDateTime.now())),
       ))
@@ -196,8 +237,7 @@ class TabularSpec extends CommonSpec {
       doclib = List(
         DoclibFlag(
           key = "tabular.totsv",
-          version = 2.0,
-          hash ="01234567890",
+          version = consumerVersion,
           started = LocalDateTime.now(),
           ended = Some(LocalDateTime.now())
         )))
@@ -220,9 +260,9 @@ class TabularSpec extends CommonSpec {
 
   "A  tabular doc which has been NER'd" should { "be analysed and not NER'd" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities",  version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers",  version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file", doclib = docNER)
     val result = Tabular.unapply(d)

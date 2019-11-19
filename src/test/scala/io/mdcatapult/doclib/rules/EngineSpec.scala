@@ -2,18 +2,105 @@ package io.mdcatapult.doclib.rules
 
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.doclib.rules.sets.{Archive, CommonSpec, Document, Sendables, Tabular, Text, XML}
+import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.OptionValues
+import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class EngineSpec extends CommonSpec {
+class EngineSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+  akka.loggers = ["akka.testkit.TestEventListener"]
+  """)))  with ImplicitSender with WordSpecLike {
+
+  implicit val config: Config = ConfigFactory.parseString(
+    """
+      |doclib {
+      |  flags: "doclib"
+      |}
+      |supervisor {
+      |  archive: {
+      |    required: [{
+      |      flag: "unarchived"
+      |      route: "unarchive"
+      |      type: "queue"
+      |    }]
+      |  }
+      |   tabular: {
+      |    totsv: {
+      |      required: [{
+      |        flag: "tabular.totsv"
+      |        route: "tabular.totsv"
+      |        type: "queue"
+      |      }]
+      |    }
+      |    analyse {
+      |      required: [{
+      |        flag: "tabular.analysis"
+      |        route: "tabular.analysis"
+      |        type: "queue"
+      |      }]
+      |    }
+      |  }
+      |  text: {
+      |    required: [{
+      |       flag: "rawtext"
+      |       route: "rawtext"
+      |       type: "queue"
+      |    }]
+      |  }
+      |  image_intermediate: {
+      |    required: [{
+      |      flag: "pdf_intermediate"
+      |      route: "pdf_intermediates"
+      |      type: "queue"
+      |    }]
+      |  }
+      |  ner: {
+      |    required: [{
+      |      flag: "ner.chemblactivityterms"
+      |      route: "ner.chemblactivityterms"
+      |      type: "queue"
+      |    },{
+      |      flag: "ner.chemicalentities"
+      |      route: "ner.chemicalentities"
+      |      type: "queue"
+      |    },{
+      |      flag: "ner.chemicalidentifiers"
+      |      route: "ner.chemicalidentifiers"
+      |      type: "queue"
+      |    }]
+      |  }
+      |}
+      |op-rabbit {
+      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
+      |  default-channel-dispatcher {
+      |    type = Dispatcher
+      |    executor = "fork-join-executor"
+      |    fork-join-executor {
+      |      parallelism-min = 2
+      |      parallelism-factor = 2.0
+      |      parallelism-max = 4
+      |    }
+      |    throughput = 1
+      |  }
+      |  connection {
+      |    virtual-host = "doclib"
+      |    hosts = ["localhost"]
+      |    username = "doclib"
+      |    password = "doclib"
+      |    port = 5672
+      |    ssl = false
+      |    connection-timeout = 3s
+      |  }
+      |}
+    """.stripMargin)
 
   // Some of the RawText.convertMimetypes are handled by other rules first eg spreadsheets and archive
   val rawTextConversions = List(
@@ -39,59 +126,6 @@ class EngineSpec extends CommonSpec {
     "application/x-msaccess"
   )
 
-  implicit override val config: Config = ConfigFactory.parseString(
-    """
-      |doclib {
-      |  flags: "doclib"
-      |}
-      |supervisor {
-      |   tabular: {
-      |    totsv: {
-      |      required: [{
-      |        flag: "tabular.totsv"
-      |        route: "tabular.totsv"
-      |        type: "queue"
-      |      }]
-      |    }
-      |    analyse {
-      |      required: [{
-      |        flag: "tabular.analysis"
-      |        route: "tabular.analysis"
-      |        type: "queue"
-      |      }]
-      |    }
-      |  }
-      |  archive: {
-      |    required: [{
-      |      flag: "unarchived"
-      |      route: "unarchive"
-      |      type: "queue"
-      |    }]
-      |  }
-      |  text: {
-      |    required: [{
-      |       flag: "rawtext"
-      |       route: "rawtext"
-      |       type: "queue"
-      |    }]
-      |  }
-      |  ner: {
-      |    required: [{
-      |      flag: "ner.chemblactivityterms"
-      |      route: "ner.chemblactivityterms"
-      |      type: "queue"
-      |    },{
-      |      flag: "ner.chemicalentities"
-      |      route: "ner.chemicalentities"
-      |      type: "queue"
-      |    },{
-      |      flag: "ner.chemicalidentifiers"
-      |      route: "ner.chemicalidentifiers"
-      |      type: "queue"
-      |    }]
-      |  }
-      |}
-    """.stripMargin)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
@@ -163,7 +197,6 @@ class EngineSpec extends CommonSpec {
 
   "A document doc" should { "return rawtext sendable" in {
     rawTextConversions.foreach(mimetype => {
-      println(mimetype)
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val result = engine.resolve(doc)
       assert(result.get.length == 1)
@@ -173,6 +206,39 @@ class EngineSpec extends CommonSpec {
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
   }}
+
+  "A pdf document with completed raw text" should { "return image intermediates sendable" in {
+    val doclibFlags = List(
+      DoclibFlag(
+        key = "prefetch",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now(),
+        ended = Some(LocalDateTime.now)),
+      DoclibFlag(
+        key = "rawtext",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now))
+    )
+      val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = doclibFlags)
+      val result = engine.resolve(doc)
+      assert(result.get.length == 1)
+      assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.get.forall(s ⇒
+        List("pdf_intermediates")
+          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }}
+
 
   "An HTML doc" should { "return ner sendables" in {
     // TODO are there more mimeteypes?

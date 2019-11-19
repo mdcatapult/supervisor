@@ -2,18 +2,23 @@ package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
+import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class TextSpec extends CommonSpec {
+class TextSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+  akka.loggers = ["akka.testkit.TestEventListener"]
+  """)))  with ImplicitSender with WordSpecLike {
 
-  implicit override val config: Config = ConfigFactory.parseString(
+  implicit val config: Config = ConfigFactory.parseString(
     """
       |doclib {
       |  flags: "doclib"
@@ -23,14 +28,14 @@ class TextSpec extends CommonSpec {
       |    totsv: {
       |      required: [{
       |        flag: "tabular.totsv"
-      |        route: "doclib.tabular.totsv"
+      |        route: "tabular.totsv"
       |        type: "queue"
       |      }]
       |    }
       |    analyse {
       |      required: [{
       |        flag: "tabular.analysis"
-      |        route: "doclib.tabular.analysis"
+      |        route: "tabular.analysis"
       |        type: "queue"
       |      }]
       |    }
@@ -58,6 +63,28 @@ class TextSpec extends CommonSpec {
       |    }]
       |  }
       |}
+      |op-rabbit {
+      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
+      |  default-channel-dispatcher {
+      |    type = Dispatcher
+      |    executor = "fork-join-executor"
+      |    fork-join-executor {
+      |      parallelism-min = 2
+      |      parallelism-factor = 2.0
+      |      parallelism-max = 4
+      |    }
+      |    throughput = 1
+      |  }
+      |  connection {
+      |    virtual-host = "doclib"
+      |    hosts = ["localhost"]
+      |    username = "doclib"
+      |    password = "doclib"
+      |    port = 5672
+      |    ssl = false
+      |    connection-timeout = 3s
+      |  }
+      |}
     """.stripMargin)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
@@ -72,6 +99,13 @@ class TextSpec extends CommonSpec {
     updated = LocalDateTime.now(),
     mimetype = "text/plain"
   )
+
+  val consumerVersion = ConsumerVersion(
+    number = "0.0.1",
+    major = 0,
+    minor = 0,
+    patch = 1,
+    hash = "1234567890")
 
 
   "A doc with an unmatched mimetype" should { "return None " in {
@@ -95,9 +129,9 @@ class TextSpec extends CommonSpec {
 
   "A  text doc which has been NER'd" should { "not be NER'd again" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
     val result = Text.unapply(d)
@@ -106,8 +140,8 @@ class TextSpec extends CommonSpec {
 
   "A  text doc which has one missing NER flag" should { "have 1 NER sendable" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
     val result = Text.unapply(d)
@@ -122,9 +156,9 @@ class TextSpec extends CommonSpec {
 
   "A  text doc which has all NER flags but without some end timestamp" should { "have no sendables" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = None)
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = None)
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
     val result = Text.unapply(d)

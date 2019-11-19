@@ -2,18 +2,23 @@ package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
+import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class DocumentSpec extends CommonSpec {
+class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+  akka.loggers = ["akka.testkit.TestEventListener"]
+  """)))  with ImplicitSender with WordSpecLike {
 
-  implicit override val config: Config = ConfigFactory.parseString(
+  implicit val config: Config = ConfigFactory.parseString(
     """
       |doclib {
       |  flags: "doclib"
@@ -23,14 +28,14 @@ class DocumentSpec extends CommonSpec {
       |    totsv: {
       |      required: [{
       |        flag: "tabular.totsv"
-      |        route: "doclib.tabular.totsv"
+      |        route: "tabular.totsv"
       |        type: "queue"
       |      }]
       |    }
       |    analyse {
       |      required: [{
       |        flag: "tabular.analysis"
-      |        route: "doclib.tabular.analysis"
+      |        route: "tabular.analysis"
       |        type: "queue"
       |      }]
       |    }
@@ -40,6 +45,13 @@ class DocumentSpec extends CommonSpec {
       |       flag: "rawtext"
       |       route: "rawtext"
       |       type: "queue"
+      |    }]
+      |  }
+      |  image_intermediate: {
+      |    required: [{
+      |      flag: "pdf_intermediate"
+      |      route: "pdf_intermediates"
+      |      type: "queue"
       |    }]
       |  }
       |  ner: {
@@ -58,7 +70,30 @@ class DocumentSpec extends CommonSpec {
       |    }]
       |  }
       |}
+      |op-rabbit {
+      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
+      |  default-channel-dispatcher {
+      |    type = Dispatcher
+      |    executor = "fork-join-executor"
+      |    fork-join-executor {
+      |      parallelism-min = 2
+      |      parallelism-factor = 2.0
+      |      parallelism-max = 4
+      |    }
+      |    throughput = 1
+      |  }
+      |  connection {
+      |    virtual-host = "doclib"
+      |    hosts = ["localhost"]
+      |    username = "doclib"
+      |    password = "doclib"
+      |    port = 5672
+      |    ssl = false
+      |    connection-timeout = 3s
+      |  }
+      |}
     """.stripMargin)
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
@@ -93,11 +128,26 @@ class DocumentSpec extends CommonSpec {
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "A  PDF doc which has been converted to raw text" should { "not be converted again" in {
-    val docRaw = DoclibFlag(key = "rawtext", version = 2.0, hash = "dev", started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+  "A  PDF doc which has been converted to raw text" should { "return pdf_intermediates sendable" in {
+    val docRaw = DoclibFlag(
+      key = "rawtext",
+      version = ConsumerVersion(
+      number = "0.0.1",
+      major = 0,
+      minor = 0,
+      patch = 1,
+      hash = "1234567890"),
+      started = LocalDateTime.now,
+      ended = Some(LocalDateTime.now))
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docRaw))
     val result = Document.unapply(d)
-    assert(result == None)
-  }}
+    assert(result.isDefined)
+    assert(result.get.isInstanceOf[Sendables])
+    assert(result.get.nonEmpty)
+    assert(result.get.length == 1)
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("pdf_intermediates")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))  }}
 
 }
