@@ -13,7 +13,7 @@ trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
   )
 
   /**
-    * convenience function to automatically test if tabular analysis is required and return appropriate sendables
+    * Convenience function to automatically test if pdf to image is required and return appropriate sendables
     *
     * @param doc      Document To Test
     * @param config   Config

@@ -10,13 +10,14 @@ import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.WordSpecLike
+import org.scalatest.FlatSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
+  """
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """)))  with ImplicitSender with WordSpecLike {
+  """))) with ImplicitSender with FlatSpecLike {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
@@ -49,10 +50,17 @@ class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFact
       |  }
       |  image_intermediate: {
       |    required: [{
-      |      flag: "pdf_intermediate"
+      |      flag: "pdf_intermediates"
       |      route: "pdf_intermediates"
       |      type: "queue"
       |    }]
+      |  }
+      |  bounding_box: {
+      |      required: [{
+      |        flag: "bounding_boxes"
+      |        route: "pdf_figures"
+      |        type: "queue"
+      |      }]
       |  }
       |  ner: {
       |    required: [{
@@ -108,29 +116,53 @@ class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFact
     mimetype = "text/plain"
   )
 
-
-  "A Tabular doc with an unmatched mimetype" should { "return None " in {
+  "A non pdf doc" should "not be processed" in {
     val d = dummy.copy(mimetype = "dummy/mimetype")
-    val result = Document.unapply(d)
+    val result = PDF.unapply(d)
     assert(result.isEmpty)
-  }}
+  }
 
-  "A  PDF doc which has not been converted to raw text" should { "return 1 rawtext sendable" in {
+  "A  PDF doc which has not been processed by image intermediates" should "return 1 image intermediate sendable" in {
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
-    val result = Document.unapply(d)
+    val result = PDF.unapply(d)
     assert(result.isDefined)
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
     assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
     assert(result.get.forall(s ⇒
-      List("rawtext")
+      List("pdf_intermediates")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
-  }}
+  }
 
-  "A  PDF doc which has been converted to raw text" should {
-    "return None" in {
-      val docRaw = DoclibFlag(
+
+  "A  PDF doc which has been converted to image intermediates" should "return 1 bounding box sendable" in {
+    val docFlag = DoclibFlag(
+      key = "pdf_intermediates",
+      version = ConsumerVersion(
+        number = "0.0.1",
+        major = 0,
+        minor = 0,
+        patch = 1,
+        hash = "1234567890"),
+      started = LocalDateTime.now,
+      ended = Some(LocalDateTime.now)
+    )
+    val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docFlag))
+    val result = PDF.unapply(d)
+    assert(result.isDefined)
+    assert(result.get.isInstanceOf[Sendables])
+    assert(result.get.nonEmpty)
+    assert(result.get.length == 1)
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("pdf_figures")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
+  "A  PDF doc which has image intermediates and bounding boxes" should "return empty sendable" in {
+    val flags = List(
+      DoclibFlag(
         key = "rawtext",
         version = ConsumerVersion(
           number = "0.0.1",
@@ -139,10 +171,34 @@ class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFact
           patch = 1,
           hash = "1234567890"),
         started = LocalDateTime.now,
-        ended = Some(LocalDateTime.now))
-      val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docRaw))
-      val result = Document.unapply(d)
-      assert(result.isEmpty)
-    }
+        ended = Some(LocalDateTime.now)
+      ),
+      DoclibFlag(
+        key = "pdf_intermediates",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now)
+      ),
+      DoclibFlag(
+        key = "bounding_boxes",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now)
+      )
+    )
+    val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
+    val result = Document.unapply(d)
+    assert(result.isEmpty)
   }
+
 }
