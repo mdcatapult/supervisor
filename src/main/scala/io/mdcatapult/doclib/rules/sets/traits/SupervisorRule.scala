@@ -1,14 +1,11 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.{Envelope, Queue, Registry}
+import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContextExecutor
 
 trait SupervisorRule[T <: Envelope] {
 
@@ -64,5 +61,14 @@ trait SupervisorRule[T <: Envelope] {
       }).toList.asInstanceOf[Sendables]
 
 
+  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables] = {
+    implicit val document: DoclibDoc = doc
+    if (started(key) && !completed(key))
+      Some(Sendables())
+    else if (!started(key))
+      Some(getSendables(key))
+    else
+      None
+  }
 
 }

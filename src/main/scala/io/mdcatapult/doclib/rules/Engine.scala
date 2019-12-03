@@ -33,6 +33,7 @@ class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExec
     case XML(qs) ⇒ Some(qs.distinct)
     case Text(qs) ⇒ Some(qs.distinct)
     case Document(qs) ⇒ Some(qs.distinct)
+    case PDF(qs) => Some(qs.distinct)
     case Chemical(qs) ⇒ Some(qs.distinct)
     case Image(qs) ⇒ Some(qs.distinct)
     case Audio(qs) ⇒ Some(qs.distinct)

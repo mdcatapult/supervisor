@@ -14,7 +14,7 @@ import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class ArchiveSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+class DocumentSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
   """)))  with ImplicitSender with WordSpecLike {
 
@@ -24,10 +24,48 @@ class ArchiveSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFacto
       |  flags: "doclib"
       |}
       |supervisor {
-      |  archive: {
+      |   tabular: {
+      |    totsv: {
+      |      required: [{
+      |        flag: "tabular.totsv"
+      |        route: "tabular.totsv"
+      |        type: "queue"
+      |      }]
+      |    }
+      |    analyse {
+      |      required: [{
+      |        flag: "tabular.analysis"
+      |        route: "tabular.analysis"
+      |        type: "queue"
+      |      }]
+      |    }
+      |  }
+      |  text: {
       |    required: [{
-      |      flag: "unarchived"
-      |      route: "unarchive"
+      |       flag: "rawtext"
+      |       route: "rawtext"
+      |       type: "queue"
+      |    }]
+      |  }
+      |  image_intermediate: {
+      |    required: [{
+      |      flag: "pdf_intermediate"
+      |      route: "pdf_intermediates"
+      |      type: "queue"
+      |    }]
+      |  }
+      |  ner: {
+      |    required: [{
+      |      flag: "ner.chemblactivityterms"
+      |      route: "ner.chemblactivityterms"
+      |      type: "queue"
+      |    },{
+      |      flag: "ner.chemicalentities"
+      |      route: "ner.chemicalentities"
+      |      type: "queue"
+      |    },{
+      |      flag: "ner.chemicalidentifiers"
+      |      route: "ner.chemicalidentifiers"
       |      type: "queue"
       |    }]
       |  }
@@ -55,13 +93,14 @@ class ArchiveSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFacto
       |  }
       |}
     """.stripMargin)
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val dummy = DoclibDoc(
     _id = new ObjectId(),
-    source = "dummt.txt",
+    source = "dummy.pdf",
     hash = "01234567890",
     derivative = false,
     created = LocalDateTime.now(),
@@ -69,55 +108,41 @@ class ArchiveSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFacto
     mimetype = "text/plain"
   )
 
-  "An Archive with an unmatched mimetype" should { "return None " in {
+
+  "A Tabular doc with an unmatched mimetype" should { "return None " in {
     val d = dummy.copy(mimetype = "dummy/mimetype")
-    val result = Archive.unapply(d)
+    val result = Document.unapply(d)
     assert(result.isEmpty)
   }}
 
-  "An un-started Archive" should { "return an unarchive sendable" in {
-    val d = dummy.copy(mimetype = "application/gzip")
-    val result = Archive.unapply(d)
+  "A  PDF doc which has not been converted to raw text" should { "return 1 rawtext sendable" in {
+    val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
+    val result = Document.unapply(d)
     assert(result.isDefined)
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
-    assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "unarchive")
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("rawtext")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "An started but incomplete Archive" should { "return empty sendables" in {
-    val d = dummy.copy(mimetype = "application/gzip", doclib = List(
-      DoclibFlag(
-        key = "unarchived",
+  "A  PDF doc which has been converted to raw text" should {
+    "return None" in {
+      val docRaw = DoclibFlag(
+        key = "rawtext",
         version = ConsumerVersion(
           number = "0.0.1",
           major = 0,
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now()
-    )))
-    val result = Archive.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
-  }}
-
-  "An completed Archive" should { "return None" in {
-    val d = dummy.copy(mimetype = "application/gzip", doclib = List(
-      DoclibFlag(
-        key = "unarchived",
-        version = ConsumerVersion(
-          number = "0.0.1",
-          major = 0,
-          minor = 0,
-          patch = 1,
-          hash = "1234567890"),
-        started = LocalDateTime.now(),
-        ended = Some(LocalDateTime.now())
-      )))
-    val result = Archive.unapply(d)
-    assert(result.isEmpty)
-  }}
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now))
+      val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docRaw))
+      val result = Document.unapply(d)
+      assert(result.isEmpty)
+    }
+  }
 }
