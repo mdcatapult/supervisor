@@ -1,3 +1,6 @@
+import Release._
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
+
 lazy val configVersion = "1.3.2"
 lazy val akkaVersion = "2.5.25"
 lazy val catsVersion = "2.0.0"
@@ -5,19 +8,19 @@ lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
 lazy val tikaVersion = "1.21"
-lazy val doclibCommonVersion = "0.0.22"
+lazy val doclibCommonVersion = "0.0.25"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
 lazy val root = (project in file(".")).
   settings(
     name              := "consumer-supervisor",
-    version           := "0.1",
-    scalaVersion      := "2.12.8",
+    scalaVersion      := "2.12.10",
     scalacOptions     += "-Ypartial-unification",
     coverageEnabled   := false,
-    resolvers         ++= Seq("MDC Nexus Releases" at "http://nexus.mdcatapult.io/repository/maven-releases/",
-      "MDC Nexus Snapshots" at "http://nexus.mdcatapult.io/repository/maven-snapshots/"),
+    resolvers         ++= Seq(
+      "MDC Nexus Releases" at "https://nexus.mdcatapult.io/repository/maven-releases/",
+      "MDC Nexus Snapshots" at "https://nexus.mdcatapult.io/repository/maven-snapshots/"),
     updateOptions     := updateOptions.value.withLatestSnapshots(false),
     credentials       += {
       val nexusPassword = sys.env.get("NEXUS_PASSWORD")
@@ -47,7 +50,10 @@ lazy val root = (project in file(".")).
       .map(_ exclude("javax.ws.rs", "javax.ws.rs-api"))
       .map(_ exclude("com.sun.activation", "javax.activation"))
       .map(_ exclude("com.sun.activation", "registries")),
-    assemblyJarName := "consumer-supervisor.jar",
+  )
+  .settings(
+    assemblyJarName := "consumer.jar",
+    test in assembly := {},
     assemblyMergeStrategy in assembly := {
       case PathList("javax", "servlet", xs @ _*) => MergeStrategy.first
       case PathList("javax", "activation", xs @ _*) => MergeStrategy.first
@@ -67,4 +73,22 @@ lazy val root = (project in file(".")).
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
     }
+  )
+  .settings(
+    releaseProcess := Seq[ReleaseStep](
+      checkSnapshotDependencies,
+      inquireVersions,
+      runClean,
+      runTest,
+      setReleaseVersion,
+      getShortSha,
+      writeReleaseVersionFile,
+      commitAllRelease,
+      tagRelease,
+      runAssembly,
+      setNextVersion,
+      writeNextVersionFile,
+      commitAllNext,
+      pushChanges
+    )
   )
