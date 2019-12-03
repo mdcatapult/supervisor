@@ -14,7 +14,7 @@ import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class TabularSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString("""
+class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
   """)))  with ImplicitSender with WordSpecLike {
 

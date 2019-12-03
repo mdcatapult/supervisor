@@ -15,7 +15,7 @@ import org.scalatest.WordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
-class EngineSpec extends TestKit(ActorSystem("PrefetchHandlerSpec", ConfigFactory.parseString(
+class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseString(
   """
   akka.loggers = ["akka.testkit.TestEventListener"]
   """))) with ImplicitSender with WordSpecLike {
