@@ -98,7 +98,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
   implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val dummy = DoclibDoc(
+  val dummy: DoclibDoc = DoclibDoc(
     _id = new ObjectId(),
     source = "dummt.txt",
     hash = "01234567890",
@@ -108,7 +108,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     mimetype = "text/plain"
   )
 
-  val consumerVersion = ConsumerVersion(
+  val consumerVersion: ConsumerVersion = ConsumerVersion(
     number = "0.0.1",
     major = 0,
     minor = 0,
@@ -123,7 +123,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
   }}
 
   "An un-started Tabular TSV doc" should { "return a tsv sendable" in {
-    implicit val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
+    implicit val d: DoclibDoc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
     val result = Tabular.getSendables("supervisor.tabular.totsv")
     assert(result.length == 1)
     assert(result.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
@@ -134,7 +134,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
 
   "An Tabular doc with partially completed extraction" should { "return empty sendables" in {
     val d = dummy.copy(
-      mimetype = "text/csv",
+      mimetype = "application/vnd.ms-excel",
       source = "/dummy/path/to/dummy/file",
       doclib = List(
         DoclibFlag(
@@ -152,7 +152,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
   }}
 
   "An extracted Tabular doc with partially completed analysis" should { "not require analysis" in {
-    implicit val d = dummy.copy(
+    implicit val d: DoclibDoc = dummy.copy(
       mimetype = "text/tab-separated-values",
       source = "/dummy/path/to/dummy/file",
       doclib = List(
@@ -277,7 +277,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
   }}
 
   "A text" should { "not be analysed" in {
-    implicit val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file")
+    implicit val d: DoclibDoc = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file")
     val result = Tabular.requiredAnalysis()
     assert(result.isEmpty)
 
