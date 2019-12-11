@@ -15,13 +15,13 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
 
 
   val isTsv: Regex =
-    """^(text/(tab.*))$""".r
+    """^(text/(csv|tab.*))$""".r
 
   /**
     * Do NER should before analysis
-    * @param doc
-    * @param config
-    * @param registry
+    * @param doc DoclibDoc
+    * @param config Config
+    * @param registry Registry
     * @return
     */
   def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {

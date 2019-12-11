@@ -7,14 +7,11 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 /**
   * Check if spreadsheet formatted document is valid for extraction
-  * @tparam T
+  * @tparam T Envelope
   */
 trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
 
   val extractMimetypes = List(
-    "text/csv",
-    // We are converting to tsv so this doesn't need converted
-    //"text/tab-separated-values",
     "application/vnd.lotus-1-2-3",
     "application/vnd.ms-excel",
     "application/vnd.ms-excel.sheet.macroenabled.12",
@@ -33,9 +30,10 @@ trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
     * @return
     */
   def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    extractMimetypes.contains(doc.mimetype) match {
-      case true => doTask("supervisor.tabular.totsv", doc)
-      case false => None
+    if (extractMimetypes.contains(doc.mimetype)) {
+      doTask("supervisor.tabular.totsv", doc)
+    } else {
+      None
     }
   }
 }
