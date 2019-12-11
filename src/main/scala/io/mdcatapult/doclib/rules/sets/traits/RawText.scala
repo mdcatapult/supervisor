@@ -7,13 +7,11 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 /**
   * Convert document to raw text
-  * @tparam T
+  * @tparam T Envelope
   */
 trait RawText [T <: Envelope] extends SupervisorRule[T]{
 
   val convertMimetypes = List(
-    "text/csv",
-    "text/tab-separated-values",
     "application/vnd.lotus-1-2-3",
     "application/vnd.ms-excel",
     "application/vnd.ms-excel.sheet.macroenabled.12",
@@ -47,15 +45,16 @@ trait RawText [T <: Envelope] extends SupervisorRule[T]{
 
   /**
     * Is this document valid for conversion to raw text?
-    * @param doc
-    * @param config
-    * @param registry
+    * @param doc Doclib
+    * @param config Config
+    * @param registry Registry
     * @return
     */
   def requiredRawTextConversion()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    convertMimetypes.contains(doc.mimetype) match {
-      case true => doTask("supervisor.text", doc)
-      case false => None
+    if (convertMimetypes.contains(doc.mimetype)) {
+      doTask("supervisor.text", doc)
+    } else {
+      None
     }
   }
 }
