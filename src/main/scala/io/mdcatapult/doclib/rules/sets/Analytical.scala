@@ -19,7 +19,7 @@ object Analytical extends SupervisorRule[DoclibMsg] {
   override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
     implicit val document: DoclibDoc = doc
     if (config.getBoolean("analytical.supervisor"))
-      Some(getSendables("supervisor.analytical"))
+      doTask("supervisor.analytical", doc)
     else
       None
   }
