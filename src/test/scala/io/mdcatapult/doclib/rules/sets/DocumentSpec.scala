@@ -10,13 +10,13 @@ import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
 class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """)))  with ImplicitSender with WordSpecLike {
+  """)))  with ImplicitSender with AnyWordSpecLike {
 
   implicit val config: Config = ConfigFactory.parseString(
     """

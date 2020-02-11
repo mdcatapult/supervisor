@@ -11,14 +11,14 @@ import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.FlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
 class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseString(
   """
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with ImplicitSender with FlatSpecLike {
+  """))) with ImplicitSender with AnyFlatSpecLike {
 
   implicit val config: Config = ConfigFactory.parseString(
     """

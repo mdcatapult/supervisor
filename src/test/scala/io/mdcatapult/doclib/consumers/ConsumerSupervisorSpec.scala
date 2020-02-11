@@ -12,13 +12,14 @@ import io.mdcatapult.doclib.rules.sets.Tabular
 import io.mdcatapult.klein.queue.Registry
 import org.mongodb.scala.bson.ObjectId
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
 class ConsumerSupervisorSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with WordSpecLike with BeforeAndAfterAll with MockFactory {
+  """))) with AnyWordSpecLike with BeforeAndAfterAll with MockFactory {
 
   implicit val config: Config = ConfigFactory.parseString(
     """

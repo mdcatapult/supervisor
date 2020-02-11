@@ -2,13 +2,13 @@ import Release._
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 lazy val configVersion = "1.3.2"
-lazy val akkaVersion = "2.5.25"
-lazy val catsVersion = "2.0.0"
+lazy val akkaVersion = "2.5.26"
+lazy val catsVersion = "2.1.0"
 lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
 lazy val tikaVersion = "1.21"
-lazy val doclibCommonVersion = "0.0.34"
+lazy val doclibCommonVersion = "0.0.40"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
@@ -31,8 +31,8 @@ lazy val root = (project in file(".")).
       }
     },
     libraryDependencies ++= Seq(
-      "org.scalactic" %% "scalactic"                  % "3.0.8",
-      "org.scalatest" %% "scalatest"                  % "3.0.8" % Test,
+      "org.scalactic" %% "scalactic"                  % "3.1.0",
+      "org.scalatest" %% "scalatest"                  % "3.1.0" % Test,
       "org.scalamock" %% "scalamock"                  % "4.3.0" % Test,
       "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,

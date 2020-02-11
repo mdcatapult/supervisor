@@ -8,16 +8,15 @@ import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
-import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.{FlatSpecLike}
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.ExecutionContextExecutor
 
 class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisorSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """)))  with ImplicitSender with FlatSpecLike {
+  """)))  with ImplicitSender with AnyFlatSpecLike {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
