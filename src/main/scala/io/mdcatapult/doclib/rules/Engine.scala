@@ -38,6 +38,7 @@ class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExec
     case Image(qs) ⇒ Some(qs.distinct)
     case Audio(qs) ⇒ Some(qs.distinct)
     case Video(qs) ⇒ Some(qs.distinct)
+    case Analytical(qs) => Some(qs.distinct)
     case _ ⇒ None
   }
 }
