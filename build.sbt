@@ -2,18 +2,22 @@ import Release._
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
 lazy val configVersion = "1.3.2"
-lazy val akkaVersion = "2.5.25"
-lazy val catsVersion = "2.0.0"
+lazy val akkaVersion = "2.5.26"
+lazy val catsVersion = "2.1.0"
 lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
 lazy val tikaVersion = "1.21"
-lazy val doclibCommonVersion = "0.0.34"
+lazy val doclibCommonVersion = "0.0.41-SNAPSHOT"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
-lazy val root = (project in file(".")).
-  settings(
+lazy val IntegrationTest = config("it") extend Test
+
+lazy val root = (project in file("."))
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
     name              := "consumer-supervisor",
     scalaVersion      := "2.12.10",
     scalacOptions     += "-Ypartial-unification",
@@ -31,10 +35,10 @@ lazy val root = (project in file(".")).
       }
     },
     libraryDependencies ++= Seq(
-      "org.scalactic" %% "scalactic"                  % "3.0.8",
-      "org.scalatest" %% "scalatest"                  % "3.0.8" % Test,
-      "org.scalamock" %% "scalamock"                  % "4.3.0" % Test,
-      "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % Test,
+      "org.scalactic" %% "scalactic"                  % "3.1.0",
+      "org.scalatest" %% "scalatest"                  % "3.1.0" % "it, test",
+      "org.scalamock" %% "scalamock"                  % "4.3.0" % "it, test",
+      "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % "it, test",
       "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,
       "ch.qos.logback" % "logback-classic"            % "1.2.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",

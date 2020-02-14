@@ -8,7 +8,7 @@ import org.mongodb.scala.{Document => MongoDoc}
 import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.Registry
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 trait RulesEngine {
   def resolve(doc: DoclibDoc): Option[Sendables]
@@ -22,7 +22,7 @@ trait RulesEngine {
   *
   * @param config Config
   */
-class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor) extends RulesEngine {
+class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContext) extends RulesEngine {
 
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
@@ -38,10 +38,11 @@ class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExec
     case Image(qs) ⇒ Some(qs.distinct)
     case Audio(qs) ⇒ Some(qs.distinct)
     case Video(qs) ⇒ Some(qs.distinct)
+    case Analytical(qs) => Some(qs.distinct)
     case _ ⇒ None
   }
 }
 
 object Engine {
-  def apply()(implicit config: Config, sys: ActorSystem, ex: ExecutionContextExecutor) =  new Engine
+  def apply()(implicit config: Config, sys: ActorSystem, ex: ExecutionContext) =  new Engine
 }

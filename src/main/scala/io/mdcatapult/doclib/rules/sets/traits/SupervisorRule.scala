@@ -1,5 +1,7 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
+import java.time.ZoneOffset
+
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
@@ -60,6 +62,14 @@ trait SupervisorRule[T <: Envelope] {
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
+
+  def rerunAllowed(key: String)(implicit doc: DoclibDoc): Boolean = {
+    val flag = doc.getFlag(key).head
+    flag.reset match {
+      case Some(time) ⇒ time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
+      case None ⇒ true
+    }
+  }
 
   def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables] = {
     implicit val document: DoclibDoc = doc
