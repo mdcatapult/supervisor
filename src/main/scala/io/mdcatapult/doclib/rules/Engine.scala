@@ -4,11 +4,10 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import org.mongodb.scala.{Document => MongoDoc}
 import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.Registry
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContext
 
 trait RulesEngine {
   def resolve(doc: DoclibDoc): Option[Sendables]
@@ -38,7 +37,6 @@ class Engine(implicit config: Config, sys: ActorSystem, ex: ExecutionContext) ex
     case Image(qs) ⇒ Some(qs.distinct)
     case Audio(qs) ⇒ Some(qs.distinct)
     case Video(qs) ⇒ Some(qs.distinct)
-    case Analytical(qs) => Some(qs.distinct)
     case _ ⇒ None
   }
 }
