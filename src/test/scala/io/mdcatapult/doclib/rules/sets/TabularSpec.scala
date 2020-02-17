@@ -132,7 +132,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "An Tabular doc with partially completed extraction" should { "return empty sendables" in {
+  "A Tabular doc with partially completed extraction" should { "return empty sendables" in {
     val d = dummy.copy(
       mimetype = "application/vnd.ms-excel",
       source = "/dummy/path/to/dummy/file",
@@ -146,9 +146,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       )
     )
     val result = Tabular.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
+    assert(result == None)
   }}
 
   "An extracted Tabular doc with partially completed analysis" should { "not require analysis" in {
@@ -182,9 +180,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           started = LocalDateTime.now())
       ))
     val result = Tabular.requiredAnalysis()
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
+    assert(result == None)
+
   }}
 
   "A complete TSV doc" should { "return None" in {

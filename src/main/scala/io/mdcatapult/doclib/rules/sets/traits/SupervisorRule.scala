@@ -46,7 +46,7 @@ trait SupervisorRule[T <: Envelope] {
     * checks the document for all configured & required flags and generates a list of
     * sendables that do not already have flags present in the document,
     * will always return an empty Sendables list which will always result in requeue
-    * @param key String ofg the config path
+    * @param key String of the config path
     * @param doc Document to check
     * @param config Config to retrieve settings from
     * @param registry Registry
@@ -56,29 +56,31 @@ trait SupervisorRule[T <: Envelope] {
                   (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
   : Sendables =
     config.getConfigList(s"$key.required").asScala
-      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
+//      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
+      .filterNot(r => rerunAllowed(r))
       .map(r ⇒ r.getString("type") match {
         case "queue" ⇒ registry.get(r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
-
-  def rerunAllowed(key: String)(implicit doc: DoclibDoc): Boolean = {
-    val flag = doc.getFlag(key).head
-    flag.reset match {
-      case Some(time) ⇒ time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
-      case None ⇒ true
+  def rerunAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
+    if (doc.hasFlag(flagConfig.getString("flag"))) {
+      val flag = doc.getFlag(flagConfig.getString("flag")).head
+      flag.reset match {
+        case Some(time) ⇒ !(time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC))
+        case None ⇒ true
+      }
+    } else {
+      false
     }
   }
 
   def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables] = {
     implicit val document: DoclibDoc = doc
-    if (started(key) && !completed(key))
-      Some(Sendables())
-    else if (!started(key))
-      Some(getSendables(key))
-    else
-      None
+    getSendables(key) match {
+      case head::rest => Some(head::rest)
+      case _ => None
+    }
   }
 
 }
