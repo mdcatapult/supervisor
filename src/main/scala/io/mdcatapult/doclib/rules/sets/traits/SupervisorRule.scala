@@ -56,16 +56,15 @@ trait SupervisorRule[T <: Envelope] {
                   (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
   : Sendables =
     config.getConfigList(s"$key.required").asScala
-//      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
-      .filterNot(r => !sendableAllowed(r))
+      .filter(sendableAllowed(_))
       .map(r ⇒ r.getString("type") match {
         case "queue" ⇒ registry.get(r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
   /**
-    * If flag has reset and is more recent than started then allow the Sendable. Otherwise allow Sendable if
-    * there is no existing flag
+    * Allow Sendable if there is no existing flag or if flag exists and has reset and
+    * reset timestamp is more recent than started.
     *
     * @param flagConfig
     * @param doc
