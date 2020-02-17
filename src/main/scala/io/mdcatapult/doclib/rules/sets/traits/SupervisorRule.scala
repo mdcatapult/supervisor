@@ -57,21 +57,29 @@ trait SupervisorRule[T <: Envelope] {
   : Sendables =
     config.getConfigList(s"$key.required").asScala
 //      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
-      .filterNot(r => rerunAllowed(r))
+      .filterNot(r => !sendableAllowed(r))
       .map(r ⇒ r.getString("type") match {
         case "queue" ⇒ registry.get(r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
-  def rerunAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
+  /**
+    * If flag has reset and is more recent than started then allow the Sendable. Otherwise allow Sendable if
+    * there is no existing flag
+    *
+    * @param flagConfig
+    * @param doc
+    * @return
+    */
+  def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
     if (doc.hasFlag(flagConfig.getString("flag"))) {
       val flag = doc.getFlag(flagConfig.getString("flag")).head
       flag.reset match {
-        case Some(time) ⇒ !(time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC))
-        case None ⇒ true
+        case Some(time) ⇒ time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
+        case None ⇒ false
       }
     } else {
-      false
+      true
     }
   }
 
