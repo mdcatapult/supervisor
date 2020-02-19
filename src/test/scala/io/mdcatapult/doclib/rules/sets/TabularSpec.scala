@@ -132,7 +132,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "An Tabular doc with partially completed extraction" should { "return empty sendables" in {
+  "A Tabular doc with partially completed extraction" should { "return empty sendables" in {
     val d = dummy.copy(
       mimetype = "application/vnd.ms-excel",
       source = "/dummy/path/to/dummy/file",
@@ -146,9 +146,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       )
     )
     val result = Tabular.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
+    assert(result == None)
   }}
 
   "An extracted Tabular doc with partially completed analysis" should { "not require analysis" in {
@@ -182,9 +180,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           started = LocalDateTime.now())
       ))
     val result = Tabular.requiredAnalysis()
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
+    assert(result == None)
+
   }}
 
   "A complete TSV doc" should { "return None" in {
@@ -276,11 +273,53 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
-  "A text" should { "not be analysed" in {
+  "A text doc" should { "not be analysed" in {
     implicit val d: DoclibDoc = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file")
     val result = Tabular.requiredAnalysis()
     assert(result.isEmpty)
 
   }}
+
+  "A Tabular doc with completed ner with 2 reset" should {
+    "return 2 NER sendables" in {
+      val doc: DoclibDoc = dummy.copy(
+        mimetype = "text/tab-separated-values",
+        source = "/dummy/path/to/dummy/file",
+        doclib = List(
+          DoclibFlag(
+            key = "ner.chemblactivityterms",
+            version = consumerVersion,
+            started = LocalDateTime.now,
+            ended = Some(LocalDateTime.now)
+          ),
+          DoclibFlag(
+            key = "ner.chemicalentities",
+            version = consumerVersion,
+            started = LocalDateTime.now,
+            ended = Some(LocalDateTime.now),
+            reset = Some(LocalDateTime.now.plusMinutes(10))
+          ),
+          DoclibFlag(
+            key = "ner.chemicalidentifiers",
+            version = consumerVersion,
+            started = LocalDateTime.now,
+            ended = Some(LocalDateTime.now),
+            reset = Some(LocalDateTime.now.plusMinutes(10))
+          ),
+            DoclibFlag(
+            key = "tabular.analysis",
+            version = consumerVersion,
+            started = LocalDateTime.now
+          )
+        )
+      )
+      val result = Tabular.unapply(doc)
+      assert(result.get.length == 2)
+      assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.get.forall(s ⇒
+        List("ner.chemicalentities","ner.chemicalidentifiers")
+          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+    }
+  }
 
 }

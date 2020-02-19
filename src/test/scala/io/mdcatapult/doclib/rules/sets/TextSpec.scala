@@ -162,6 +162,6 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
     val result = Text.unapply(d)
-    assert(result.get.isEmpty)
+    assert(result == None)
   }}
 }

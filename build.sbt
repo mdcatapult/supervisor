@@ -8,12 +8,16 @@ lazy val opRabbitVersion = "2.1.0"
 lazy val mongoVersion = "2.5.0"
 lazy val awsScalaVersion = "0.8.1"
 lazy val tikaVersion = "1.21"
-lazy val doclibCommonVersion = "0.0.40"
+lazy val doclibCommonVersion = "0.0.43"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
-lazy val root = (project in file(".")).
-  settings(
+lazy val IntegrationTest = config("it") extend Test
+
+lazy val root = (project in file("."))
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
     name              := "consumer-supervisor",
     scalaVersion      := "2.12.10",
     scalacOptions     += "-Ypartial-unification",
@@ -32,9 +36,9 @@ lazy val root = (project in file(".")).
     },
     libraryDependencies ++= Seq(
       "org.scalactic" %% "scalactic"                  % "3.1.0",
-      "org.scalatest" %% "scalatest"                  % "3.1.0" % Test,
-      "org.scalamock" %% "scalamock"                  % "4.3.0" % Test,
-      "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % Test,
+      "org.scalatest" %% "scalatest"                  % "3.1.0" % "it, test",
+      "org.scalamock" %% "scalamock"                  % "4.3.0" % "it, test",
+      "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % "it, test",
       "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,
       "ch.qos.logback" % "logback-classic"            % "1.2.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",

@@ -150,6 +150,13 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     mimetype = "text/plain"
   )
 
+  val consumerVersion: ConsumerVersion = ConsumerVersion(
+    number = "0.0.1",
+    major = 0,
+    minor = 0,
+    patch = 1,
+    hash = "1234567890")
+
 
   "An unknown mimetype" should "return None" in {
     val doc = dummy.copy(mimetype = "dummy/mimetype")
@@ -456,6 +463,169 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     assert(result.get.forall(s ⇒
       List("analytical.supervisor")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
+  "A PDF which has been raw text, pdf intermediates and bounding box processed with intermediates reset" should "return a pdf_intermediates sendable" in {
+    val flags = List(
+      DoclibFlag(
+        key = "rawtext",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now)
+      ),
+      DoclibFlag(
+        key = "pdf_intermediates",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now),
+        reset = Some(LocalDateTime.now.plusMinutes(10))
+      ),
+      DoclibFlag(
+        key = "bounding_boxes",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now,
+        ended = Some(LocalDateTime.now),
+        reset = Some(LocalDateTime.now.plusMinutes(10))
+      )
+    )
+    val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
+    val result = engine.resolve(doc)
+    assert(result.get.length == 1)
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("pdf_intermediates")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
+  "A Tabular doc with completed ner with 2 reset" should "return 2 NER sendables" in {
+    val doc: DoclibDoc = dummy.copy(
+      mimetype = "text/tab-separated-values",
+      source = "/dummy/path/to/dummy/file",
+      doclib = List(
+        DoclibFlag(
+          key = "ner.chemblactivityterms",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "ner.chemicalentities",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now),
+          reset = Some(LocalDateTime.now.plusMinutes(10))
+        ),
+        DoclibFlag(
+          key = "ner.chemicalidentifiers",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now),
+          reset = Some(LocalDateTime.now.plusMinutes(10))
+        ),
+        DoclibFlag(
+          key = "tabular.analysis",
+          version = consumerVersion,
+          started = LocalDateTime.now
+        )
+      )
+    )
+    val result = engine.resolve(doc)
+    assert(result.get.length == 2)
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("ner.chemicalentities", "ner.chemicalidentifiers")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
+
+  "A Tabular doc with completed ner with one reset and a reset but unfinished analysis" should "return 1 analysis sendable" in {
+    val doc: DoclibDoc = dummy.copy(
+      mimetype = "text/tab-separated-values",
+      source = "/dummy/path/to/dummy/file",
+      doclib = List(
+        DoclibFlag(
+          key = "ner.chemblactivityterms",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "ner.chemicalentities",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "ner.chemicalidentifiers",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "tabular.analysis",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          reset = Some(LocalDateTime.now.plusMinutes(10))
+        )
+      )
+    )
+    val result = engine.resolve(doc)
+    assert(result.get.length == 1)
+    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s ⇒
+      List("tabular.analysis")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
+
+  "A Tabular doc with completed ner with one reset and analysis reset before started time" should "return no sendables" in {
+    val doc: DoclibDoc = dummy.copy(
+      mimetype = "text/tab-separated-values",
+      source = "/dummy/path/to/dummy/file",
+      doclib = List(
+        DoclibFlag(
+          key = "ner.chemblactivityterms",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "ner.chemicalentities",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "ner.chemicalidentifiers",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          ended = Some(LocalDateTime.now)
+        ),
+        DoclibFlag(
+          key = "tabular.analysis",
+          version = consumerVersion,
+          started = LocalDateTime.now,
+          reset = Some(LocalDateTime.now.minusMinutes(10))
+        )
+      )
+    )
+    val result = engine.resolve(doc)
+    assert(result == None)
   }
 
 }
