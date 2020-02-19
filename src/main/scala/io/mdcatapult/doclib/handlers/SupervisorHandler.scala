@@ -31,14 +31,16 @@ class SupervisorHandler(upstream: Sendable[SupervisorMsg])
     * forcibly remove status for an exchange/queue to allow reprocessing
     * @return
     */
-  def reset(doc: DoclibDoc, msg: SupervisorMsg)(implicit ec: ExecutionContext): Future[List[Option[UpdateResult]]] = {
+  def reset(doc: DoclibDoc, msg: SupervisorMsg)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (msg.reset.isDefined) {
-      Future.sequence(msg.reset.getOrElse(List[String]()).map(flag ⇒ {
+      val flags = msg.reset.getOrElse(List[String]())
+      Future.sequence(flags.map(flag ⇒ {
         val doclibFlag = new DoclibFlags(flag)
         doclibFlag.reset(doc)
-      }))
+      })
+      ).map(_.exists(_.isDefined))
     } else {
-      Future.successful(List(None))
+      Future.successful(true)
     }
   }
 

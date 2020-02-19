@@ -180,7 +180,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   val handler = new SupervisorHandler(upstream)
 
   val dummy = DoclibDoc(
-    _id = new ObjectId(),
+    _id = new ObjectId,
     source = "dummy.txt",
     hash = "01234567890",
     derivative = false,
@@ -255,6 +255,57 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val secondFlag = updatedDoc.head.getFlag("second.flag").head
     assert(secondFlag.reset != None)
     assert(secondFlag.reset.get.toEpochSecond(ZoneOffset.UTC) >= timeNow.toEpochSecond(ZoneOffset.UTC))
+  }
+
+  "A supervisor message without reset" should "not reset the flags" in {
+    val flags = List(
+      DoclibFlag(
+        key = "first.flag",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = timeNow,
+        ended = Some(timeNow)
+      ),
+      DoclibFlag(
+        key = "second.flag",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = timeNow,
+        ended = Some(timeNow)
+      ),
+      DoclibFlag(
+        key = "third.flag",
+        version = ConsumerVersion(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = timeNow,
+        ended = Some(timeNow)
+      )
+    )
+    val doc = dummy.copy(_id = new ObjectId, mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
+    val msg = SupervisorMsg("1234")
+    val result = Await.result(collection.insertOne(doc).toFutureOption(), 5.seconds)
+    assert(result.get.toString == "The operation completed successfully")
+    // reset first and second flags which should also dedup first to the most current one
+    Await.result(handler.reset(doc, msg), 5.seconds)
+    val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
+    val flag = updatedDoc.head.getFlag("first.flag").head
+    assert(flag.reset == None)
+    assert(flag.started.toEpochSecond(ZoneOffset.UTC) == timeNow.toEpochSecond(ZoneOffset.UTC))
+    assert(flag.ended.get.toEpochSecond(ZoneOffset.UTC) == timeNow.toEpochSecond(ZoneOffset.UTC))
+    val secondFlag = updatedDoc.head.getFlag("second.flag").head
+    assert(secondFlag.reset == None)
   }
 
 }
