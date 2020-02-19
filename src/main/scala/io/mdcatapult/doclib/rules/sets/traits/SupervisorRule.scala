@@ -56,7 +56,7 @@ trait SupervisorRule[T <: Envelope] {
                   (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
   : Sendables =
     config.getConfigList(s"$key.required").asScala
-      .filter(sendableAllowed(_))
+      .filter(sendableAllowed)
       .map(r ⇒ r.getString("type") match {
         case "queue" ⇒ registry.get(r.getString("route"))
         case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
