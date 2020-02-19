@@ -24,8 +24,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
 
 class ConsumerSupervisorIntegrationTest extends TestKit(ActorSystem("SupervisorIntegrationTest", ConfigFactory.parseString(
   """
@@ -173,7 +174,6 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   implicit val collection: MongoCollection[DoclibDoc] = mongo.database.getCollection(config.getString("mongo.collection"))
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val executor: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   implicit val upstream: Sendable[SupervisorMsg] = stub[Sendable[SupervisorMsg]]
 
