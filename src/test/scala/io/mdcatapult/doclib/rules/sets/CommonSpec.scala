@@ -4,11 +4,12 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with WordSpecLike with BeforeAndAfterAll with MockFactory {
+  """))) with AnyWordSpecLike with BeforeAndAfterAll with MockFactory {
   implicit val config: Config = ConfigFactory.parseString("")
 //    """
 //      |supervisor {
