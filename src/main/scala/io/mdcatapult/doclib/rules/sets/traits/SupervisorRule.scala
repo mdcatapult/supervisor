@@ -7,7 +7,7 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.{Envelope, Registry}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait SupervisorRule[T <: Envelope] {
 
@@ -28,7 +28,7 @@ trait SupervisorRule[T <: Envelope] {
     * @return
     */
   def completed(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).exists(_.ended.nonEmpty))
+    config.getConfigList(s"$key.required").asScala.forall(r => doc.getFlag(r.getString("flag")).exists(_.ended.nonEmpty))
 
 
   /**
@@ -39,7 +39,7 @@ trait SupervisorRule[T <: Envelope] {
     * @return
     */
   def started(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).nonEmpty)
+    config.getConfigList(s"$key.required").asScala.forall(r => doc.getFlag(r.getString("flag")).nonEmpty)
 
 
   /**
@@ -57,25 +57,25 @@ trait SupervisorRule[T <: Envelope] {
   : Sendables =
     config.getConfigList(s"$key.required").asScala
       .filter(sendableAllowed)
-      .map(r ⇒ r.getString("type") match {
-        case "queue" ⇒ registry.get(r.getString("route"))
-        case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
+      .map(r => r.getString("type") match {
+        case "queue" => registry.get(r.getString("route"))
+        case _ => throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
   /**
     * Allow Sendable if there is no existing flag or if flag exists and has reset and
     * reset timestamp is more recent than started.
     *
-    * @param flagConfig
-    * @param doc
+    * @param flagConfig config
+    * @param doc doc
     * @return
     */
   def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
     if (doc.hasFlag(flagConfig.getString("flag"))) {
       val flag = doc.getFlag(flagConfig.getString("flag")).head
       flag.reset match {
-        case Some(time) ⇒ time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
-        case None ⇒ false
+        case Some(time) => time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
+        case None => false
       }
     } else {
       true

@@ -30,7 +30,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
 
     isTsv.findFirstIn(doc.mimetype) match {
       case Some(text) => requiredNer match {
-        case Some(sendables) ⇒ Some(sendables)
+        case Some(sendables) => Some(sendables)
         case _ => requiredAnalysis
       }
       case _ => None
@@ -51,7 +51,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     implicit val document: DoclibDoc = doc
 
     requiredExtraction match {
-      case Some(sendables) ⇒ Some(sendables)
+      case Some(sendables) => Some(sendables)
       case _  =>  nerOrAnalysis(doc)
     }
   }
