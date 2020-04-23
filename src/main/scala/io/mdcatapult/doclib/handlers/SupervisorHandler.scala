@@ -67,8 +67,9 @@ class SupervisorHandler()
     (for {
       doc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       _ <- OptionT.liftF(reset(doc, msg))
-      sendables <- OptionT.fromOption(engine.resolve(doc))
-      pResult <- OptionT.fromOption(publish(doc._id.toHexString, sendables))
+      updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
+      sendables <- OptionT.fromOption(engine.resolve(updatedDoc))
+      pResult <- OptionT.fromOption(publish(updatedDoc._id.toHexString, sendables))
     } yield (sendables, pResult)).value.andThen({
       case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
       case Failure(e) => throw e
