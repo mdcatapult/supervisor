@@ -3,21 +3,19 @@ package io.mdcatapult.doclib.rules.sets
 import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
-import org.scalatest.FlatSpecLike
-
-import scala.concurrent.ExecutionContextExecutor
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
   """
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with ImplicitSender with FlatSpecLike {
+  """))) with ImplicitSender with AnyFlatSpecLike {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
@@ -102,11 +100,10 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |}
     """.stripMargin)
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+  implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val dummy = DoclibDoc(
+  private val dummy = DoclibDoc(
     _id = new ObjectId(),
     source = "dummy.pdf",
     hash = "01234567890",
@@ -129,8 +126,8 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("pdf_intermediates")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -154,8 +151,8 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("pdf_figures")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }

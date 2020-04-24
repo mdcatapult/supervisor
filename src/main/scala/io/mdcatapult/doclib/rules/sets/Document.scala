@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.sets
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
-import io.mdcatapult.doclib.rules.sets.traits.{BoundingBox, ImageIntermediate, RawText}
+import io.mdcatapult.doclib.rules.sets.traits.RawText
 import io.mdcatapult.klein.queue.Registry
 
 object Document extends RawText[DoclibMsg] {
@@ -13,7 +13,7 @@ object Document extends RawText[DoclibMsg] {
   : Option[Sendables] = {
     implicit val document: DoclibDoc = doc
     requiredRawTextConversion match {
-      case Some(sendables) ⇒ Some(sendables)
+      case Some(sendables) => Some(sendables)
       case _ =>  None
     }
   }

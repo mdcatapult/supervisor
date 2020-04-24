@@ -7,7 +7,6 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 trait BoundingBox[T <: Envelope] extends SupervisorRule[T] {
 
-
   val boundingBoxMimeTypes = List(
     "application/pdf"
   )
@@ -21,11 +20,10 @@ trait BoundingBox[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredBoundingBox()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    boundingBoxMimeTypes.contains(doc.mimetype) match {
-      case true => doTask("supervisor.bounding_box", doc)
-      case false => None
-    }
-  }
+  def requiredBoundingBox()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] =
+    if (boundingBoxMimeTypes.contains(doc.mimetype))
+      doTask("supervisor.bounding_box", doc)
+    else
+      None
 
 }

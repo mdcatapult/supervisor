@@ -50,15 +50,26 @@ If it passes the tests it will then chain with the NER ruleset
 
 ### HTML
 
-
 ### NER
 
-This ruleset is not intended to be used directly but to be chained with other rulesets
+This ruleset is not intended to be used directly but to be chained with other rulesets. Currently these
+are `Tabular`, `Text`, `HTML`, `XML` & `Chemical`.
 
 ### Tabular
 
 ### Text
 
-TDB
-
 ### XML
+
+### Video
+
+### Audio
+
+### PDF
+
+Sends a `application/pdf` document to the image intermediates and then bounding box queues.
+
+### Analytical
+
+If all processing for the document has taken place and the `ANALYTICAL_SUPERVISOR` environment variable is set it 
+will send the document to the analytical supervisor queue.

@@ -4,11 +4,12 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with WordSpecLike with BeforeAndAfterAll with MockFactory {
+  """))) with AnyWordSpecLike with BeforeAndAfterAll with MockFactory {
   implicit val config: Config = ConfigFactory.parseString("")
 //    """
 //      |supervisor {
@@ -82,7 +83,7 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 //    }
 //
 //    "An un-started Document" should "return some Sendables " in {
-//      val d = MongoDoc(List("doclib" → BsonArray(flag → BsonNull())) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonArray(flag -> BsonNull())) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isDefined)
 //      assert(result.get.isInstanceOf[Sendables])
@@ -90,13 +91,13 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 //    }
 //
 //    "A valid Document with a TRUE flag " should " return None" in {
-//      val d = MongoDoc(List("doclib" → BsonDocument(flag → BsonBoolean(true))) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(true))) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }
 //
 //    "A valid Document with a FALSE flag " should "None" in {
-//      val d = MongoDoc(List("doclib" → BsonDocument(flag → BsonBoolean(false))) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(false))) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }

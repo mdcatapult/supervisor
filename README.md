@@ -28,3 +28,4 @@ The app allows runtime configuration via environment variables
 * **UPSTREAM_CONCURRENT** - optional: number of messages to handle concurrently (default: 1)
 * **AWS_ACCESS_KEY_ID** - optional: AWS access key for use when not run withing AWS 
 * **AWS_SECRET_ACCESS_KEY** - optional: AWS secret key for use when not run withing AWS
+* **ANALYTICAL_SUPERVISOR** - `true` or `false` (default: `false`) whether docs should be queued onto the analytical supervisor after other processing has completed

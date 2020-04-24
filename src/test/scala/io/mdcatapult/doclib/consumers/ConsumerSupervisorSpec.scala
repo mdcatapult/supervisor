@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.consumers
 import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
@@ -12,13 +12,12 @@ import io.mdcatapult.doclib.rules.sets.Tabular
 import io.mdcatapult.klein.queue.Registry
 import org.mongodb.scala.bson.ObjectId
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
-
-import scala.concurrent.ExecutionContextExecutor
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class ConsumerSupervisorSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with WordSpecLike with BeforeAndAfterAll with MockFactory {
+  """))) with AnyWordSpecLike with BeforeAndAfterAll with MockFactory {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
@@ -66,11 +65,10 @@ class ConsumerSupervisorSpec extends TestKit(ActorSystem("SupervisorHandlerSpec"
       |  }
       |}
     """.stripMargin)
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+  implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val dummy = DoclibDoc(
+  private val dummy = DoclibDoc(
     _id = new ObjectId(),
     source = "dummt.txt",
     hash = "01234567890",
@@ -82,7 +80,7 @@ class ConsumerSupervisorSpec extends TestKit(ActorSystem("SupervisorHandlerSpec"
 
 
   "A flag which does not route to a queue type" should { "throw exception " in {
-    implicit val doc = dummy.copy(mimetype = "dummy/mimetype")
+    implicit val doc: DoclibDoc = dummy.copy(mimetype = "dummy/mimetype")
     val flag = "supervisor.someprocess"
     val caught = intercept[Exception]{
       Tabular.getSendables(flag)

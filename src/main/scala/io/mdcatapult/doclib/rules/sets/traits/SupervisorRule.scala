@@ -1,11 +1,13 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
+import java.time.ZoneOffset
+
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.{Envelope, Registry}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait SupervisorRule[T <: Envelope] {
 
@@ -26,7 +28,7 @@ trait SupervisorRule[T <: Envelope] {
     * @return
     */
   def completed(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).exists(_.ended.nonEmpty))
+    config.getConfigList(s"$key.required").asScala.forall(r => doc.getFlag(r.getString("flag")).exists(_.ended.nonEmpty))
 
 
   /**
@@ -37,14 +39,14 @@ trait SupervisorRule[T <: Envelope] {
     * @return
     */
   def started(key: String)(implicit doc: DoclibDoc, config: Config): Boolean =
-    config.getConfigList(s"$key.required").asScala.forall(r ⇒ doc.getFlag(r.getString("flag")).nonEmpty)
+    config.getConfigList(s"$key.required").asScala.forall(r => doc.getFlag(r.getString("flag")).nonEmpty)
 
 
   /**
     * checks the document for all configured & required flags and generates a list of
     * sendables that do not already have flags present in the document,
     * will always return an empty Sendables list which will always result in requeue
-    * @param key String ofg the config path
+    * @param key String of the config path
     * @param doc Document to check
     * @param config Config to retrieve settings from
     * @param registry Registry
@@ -54,21 +56,38 @@ trait SupervisorRule[T <: Envelope] {
                   (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
   : Sendables =
     config.getConfigList(s"$key.required").asScala
-      .filterNot(r ⇒ doc.hasFlag(r.getString("flag")))
-      .map(r ⇒ r.getString("type") match {
-        case "queue" ⇒ registry.get(r.getString("route"))
-        case _ ⇒ throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
+      .filter(sendableAllowed)
+      .map(r => r.getString("type") match {
+        case "queue" => registry.get(r.getString("route"))
+        case _ => throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables]
 
+  /**
+    * Allow Sendable if there is no existing flag or if flag exists and has reset and
+    * reset timestamp is more recent than started.
+    *
+    * @param flagConfig config
+    * @param doc doc
+    * @return
+    */
+  def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
+    if (doc.hasFlag(flagConfig.getString("flag"))) {
+      val flag = doc.getFlag(flagConfig.getString("flag")).head
+      flag.reset match {
+        case Some(time) => time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
+        case None => false
+      }
+    } else {
+      true
+    }
+  }
 
   def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables] = {
     implicit val document: DoclibDoc = doc
-    if (started(key) && !completed(key))
-      Some(Sendables())
-    else if (!started(key))
-      Some(getSendables(key))
-    else
-      None
+    getSendables(key) match {
+      case head::rest => Some(head::rest)
+      case _ => None
+    }
   }
 
 }
