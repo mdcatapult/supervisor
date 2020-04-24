@@ -3,20 +3,19 @@ package io.mdcatapult.doclib.rules.sets
 import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import scala.concurrent.ExecutionContextExecutor
 
 class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """)))  with ImplicitSender with AnyWordSpecLike {
+  """)))  with ImplicitSender with AnyWordSpecLike with Matchers {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
@@ -94,8 +93,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |}
     """.stripMargin)
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+  implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val dummy: DoclibDoc = DoclibDoc(
@@ -126,8 +124,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     implicit val d: DoclibDoc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
     val result = Tabular.getSendables("supervisor.tabular.totsv")
     assert(result.length == 1)
-    assert(result.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.forall(s ⇒
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("tabular.totsv")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -145,8 +143,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         )
       )
     )
-    val result = Tabular.unapply(d)
-    assert(result == None)
+
+    Tabular.unapply(d) should be (None)
   }}
 
   "An extracted Tabular doc with partially completed analysis" should { "not require analysis" in {
@@ -179,9 +177,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           version = consumerVersion,
           started = LocalDateTime.now())
       ))
-    val result = Tabular.requiredAnalysis()
-    assert(result == None)
 
+    Tabular.requiredAnalysis() should be(None)
   }}
 
   "A complete TSV doc" should { "return None" in {
@@ -249,8 +246,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 3)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -267,8 +264,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("tabular.analysis")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -315,8 +312,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       )
       val result = Tabular.unapply(doc)
       assert(result.get.length == 2)
-      assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s ⇒
+      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.get.forall(s =>
         List("ner.chemicalentities","ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     }

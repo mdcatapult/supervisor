@@ -7,7 +7,6 @@ import io.mdcatapult.klein.queue.{Envelope, Registry}
 
 trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
 
-
   val mimeTypes = List(
     "application/pdf"
   )
@@ -20,11 +19,10 @@ trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
-    mimeTypes.contains(doc.mimetype) match {
-      case true => doTask("supervisor.image_intermediate", doc)
-      case false => None
-    }
-  }
+  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] =
+    if (mimeTypes.contains(doc.mimetype))
+      doTask("supervisor.image_intermediate", doc)
+    else
+      None
 
 }

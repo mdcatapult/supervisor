@@ -83,7 +83,7 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 //    }
 //
 //    "An un-started Document" should "return some Sendables " in {
-//      val d = MongoDoc(List("doclib" → BsonArray(flag → BsonNull())) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonArray(flag -> BsonNull())) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isDefined)
 //      assert(result.get.isInstanceOf[Sendables])
@@ -91,13 +91,13 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 //    }
 //
 //    "A valid Document with a TRUE flag " should " return None" in {
-//      val d = MongoDoc(List("doclib" → BsonDocument(flag → BsonBoolean(true))) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(true))) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }
 //
 //    "A valid Document with a FALSE flag " should "None" in {
-//      val d = MongoDoc(List("doclib" → BsonDocument(flag → BsonBoolean(false))) ++ props)
+//      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(false))) ++ props)
 //      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }

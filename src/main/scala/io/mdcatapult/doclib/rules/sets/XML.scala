@@ -1,13 +1,10 @@
 package io.mdcatapult.doclib.rules.sets
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.NER
 import io.mdcatapult.klein.queue.Registry
-
-import scala.concurrent.ExecutionContextExecutor
 
 object XML extends NER[DoclibMsg] {
 

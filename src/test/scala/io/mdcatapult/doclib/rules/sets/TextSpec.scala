@@ -3,20 +3,19 @@ package io.mdcatapult.doclib.rules.sets
 import java.time.LocalDateTime
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import scala.concurrent.ExecutionContextExecutor
 
 class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """)))  with ImplicitSender with AnyWordSpecLike {
+  """)))  with ImplicitSender with AnyWordSpecLike with Matchers {
 
   implicit val config: Config = ConfigFactory.parseString(
     """
@@ -86,11 +85,11 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       |  }
       |}
     """.stripMargin)
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val executor: ExecutionContextExecutor = scala.concurrent.ExecutionContext.global
+
+  implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val dummy = DoclibDoc(
+  private val dummy = DoclibDoc(
     _id = new ObjectId(),
     source = "dummy.pdf",
     hash = "01234567890",
@@ -100,7 +99,7 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     mimetype = "text/plain"
   )
 
-  val consumerVersion = ConsumerVersion(
+  private val consumerVersion = ConsumerVersion(
     number = "0.0.1",
     major = 0,
     minor = 0,
@@ -121,8 +120,8 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 3)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -134,8 +133,8 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
-    val result = Text.unapply(d)
-    assert(result == None)
+
+    Text.unapply(d) should be (None)
   }}
 
   "A  text doc which has one missing NER flag" should { "have 1 NER sendable" in {
@@ -148,8 +147,8 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     assert(result.get.isInstanceOf[Sendables])
     assert(result.get.nonEmpty)
     assert(result.get.length == 1)
-    assert(result.get.forall(s ⇒ s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s ⇒
+    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.get.forall(s =>
       List("ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -161,7 +160,7 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = None)
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
-    val result = Text.unapply(d)
-    assert(result == None)
+
+    Text.unapply(d) should be (None)
   }}
 }

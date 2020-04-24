@@ -10,17 +10,18 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.doclib.util.DoclibFlags
-import io.mdcatapult.klein.queue.{Queue, Sendable}
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.result.UpdateResult
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-class SupervisorHandler(upstream: Sendable[SupervisorMsg])
-                       (implicit as: ActorSystem, ec: ExecutionContext, config: Config, collection: MongoCollection[DoclibDoc]) extends LazyLogging {
+class SupervisorHandler()
+                       (implicit as: ActorSystem,
+                        ec: ExecutionContext,
+                        config: Config,
+                        collection: MongoCollection[DoclibDoc]) extends LazyLogging {
 
   /**
     * construct the appropriate rule engine based on the supplied config
@@ -34,7 +35,7 @@ class SupervisorHandler(upstream: Sendable[SupervisorMsg])
   def reset(doc: DoclibDoc, msg: SupervisorMsg)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (msg.reset.isDefined) {
       val flags = msg.reset.getOrElse(List[String]())
-      Future.sequence(flags.map(flag ⇒ {
+      Future.sequence(flags.map(flag => {
         val doclibFlag = new DoclibFlags(flag)
         doclibFlag.reset(doc)
       })
@@ -45,15 +46,15 @@ class SupervisorHandler(upstream: Sendable[SupervisorMsg])
   }
 
   /**
-    * send a message to all lf the listed Sendabled
+    * send a message to all if the list is Sendabled
     * @param id document id to send
     * @param sendables list of sendables
     * @return
     */
   def publish(id: String, sendables: Sendables): Option[Boolean] =
-    Try(sendables.foreach(s ⇒ s.send(DoclibMsg(id)))) match {
-      case Success(_) ⇒ Some(true)
-      case Failure(e) ⇒ throw e
+    Try(sendables.foreach(s => s.send(DoclibMsg(id)))) match {
+      case Success(_) => Some(true)
+      case Failure(e) => throw e
     }
 
   /**
@@ -64,13 +65,14 @@ class SupervisorHandler(upstream: Sendable[SupervisorMsg])
     */
   def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] = {
     (for {
-      doc ← OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
-      _ ← OptionT.liftF(reset(doc, msg))
-      sendables ← OptionT.fromOption(engine.resolve(doc))
-      pResult ← OptionT.fromOption(publish(doc._id.toHexString, sendables))
+      doc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
+      _ <- OptionT.liftF(reset(doc, msg))
+      updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
+      sendables <- OptionT.fromOption(engine.resolve(updatedDoc))
+      pResult <- OptionT.fromOption(publish(updatedDoc._id.toHexString, sendables))
     } yield (sendables, pResult)).value.andThen({
-      case Success(r) ⇒ logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
-      case Failure(e) ⇒ throw e
+      case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
+      case Failure(e) => throw e
     })
   }
 }

@@ -1,18 +1,18 @@
 package io.mdcatapult.doclib.consumers
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.temporal.ChronoUnit.MILLIS
 
 import akka.actor._
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import better.files.{File => ScalaFile}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.handlers.SupervisorHandler
 import io.mdcatapult.doclib.messages.SupervisorMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag, FileAttrs}
-import io.mdcatapult.doclib.util.{DirectoryDelete, MongoCodecs}
+import io.mdcatapult.doclib.util.ImplicitOrdering.localDateOrdering._
+import io.mdcatapult.doclib.util.{DirectoryDelete, MongoCodecs, nowUtc}
 import io.mdcatapult.klein.mongo.Mongo
-import io.mdcatapult.klein.queue.Sendable
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -143,17 +143,16 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       |}
   """.stripMargin)
 
-  val timeNow: LocalDateTime = LocalDateTime.now
+  private val timeNow = nowUtc.now().truncatedTo(MILLIS)
 
   def createNewDoc(source: String, mimetype: String): DoclibDoc = {
-    val createdTime = timeNow.toInstant(ZoneOffset.UTC)
     val path = ScalaFile(source).path
     val fileAttrs = FileAttrs(
       path = path.getParent.toAbsolutePath.toString,
       name = path.getFileName.toString,
-      mtime = LocalDateTime.ofInstant(createdTime, ZoneOffset.UTC),
-      ctime = LocalDateTime.ofInstant(createdTime, ZoneOffset.UTC),
-      atime = LocalDateTime.ofInstant(createdTime, ZoneOffset.UTC),
+      mtime = timeNow,
+      ctime = timeNow,
+      atime = timeNow,
       size = 5
     )
     //TODO what should created and updated time be. Mime type? From getMimeType or from some metadata? More than one?
@@ -162,8 +161,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       source = source,
       hash = "12345",
       derivative = false,
-      created = LocalDateTime.ofInstant(createdTime, ZoneOffset.UTC),
-      updated = LocalDateTime.ofInstant(createdTime, ZoneOffset.UTC),
+      created = timeNow,
+      updated = timeNow,
       mimetype = mimetype,
       attrs = Some(fileAttrs)
     )
@@ -173,13 +172,11 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   val mongo: Mongo = new Mongo()
   implicit val collection: MongoCollection[DoclibDoc] = mongo.database.getCollection(config.getString("mongo.collection"))
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val m: Materializer = Materializer(system)
 
-  implicit val upstream: Sendable[SupervisorMsg] = stub[Sendable[SupervisorMsg]]
+  val handler = new SupervisorHandler()
 
-  val handler = new SupervisorHandler(upstream)
-
-  val dummy = DoclibDoc(
+  private val dummy = DoclibDoc(
     _id = new ObjectId,
     source = "dummy.txt",
     hash = "01234567890",
@@ -189,7 +186,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     mimetype = "text/plain"
   )
 
-  override def beforeAll {
+  override def beforeAll(): Unit = {
     Await.result(collection.deleteMany(combine()).toFuture(), Duration.Inf) // empty collection
   }
 
@@ -248,13 +245,14 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     Await.result(handler.reset(doc, msg), 5.seconds)
     val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
     val flag = updatedDoc.head.getFlag("first.flag").head
-    assert(flag.reset != None)
-    assert(flag.reset.get.toEpochSecond(ZoneOffset.UTC) >= timeNow.toEpochSecond(ZoneOffset.UTC))
-    assert(flag.started.toEpochSecond(ZoneOffset.UTC) >= timeNow.plusHours(1).toEpochSecond(ZoneOffset.UTC))
-    assert(flag.ended.get.toEpochSecond(ZoneOffset.UTC) >= timeNow.plusHours(1).plusMinutes(1).toEpochSecond(ZoneOffset.UTC))
+    flag.reset should not be None
+
+    assert(flag.reset.get.truncatedTo(MILLIS) >= timeNow)
+    assert(flag.started.truncatedTo(MILLIS) >= timeNow.plusHours(1))
+    assert(flag.ended.get.truncatedTo(MILLIS) >= timeNow.plusHours(1).plusMinutes(1))
     val secondFlag = updatedDoc.head.getFlag("second.flag").head
-    assert(secondFlag.reset != None)
-    assert(secondFlag.reset.get.toEpochSecond(ZoneOffset.UTC) >= timeNow.toEpochSecond(ZoneOffset.UTC))
+    secondFlag.reset should not be None
+    assert(secondFlag.reset.get.truncatedTo(MILLIS) >= timeNow)
   }
 
   "A supervisor message without reset" should "not reset the flags" in {
@@ -301,11 +299,11 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     Await.result(handler.reset(doc, msg), 5.seconds)
     val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
     val flag = updatedDoc.head.getFlag("first.flag").head
-    assert(flag.reset == None)
-    assert(flag.started.toEpochSecond(ZoneOffset.UTC) == timeNow.toEpochSecond(ZoneOffset.UTC))
-    assert(flag.ended.get.toEpochSecond(ZoneOffset.UTC) == timeNow.toEpochSecond(ZoneOffset.UTC))
+    flag.reset should be (None)
+    assert(flag.started.truncatedTo(MILLIS) == timeNow)
+    assert(flag.ended.get.truncatedTo(MILLIS) == timeNow)
     val secondFlag = updatedDoc.head.getFlag("second.flag").head
-    assert(secondFlag.reset == None)
+    secondFlag.reset should be (None)
   }
 
 }
