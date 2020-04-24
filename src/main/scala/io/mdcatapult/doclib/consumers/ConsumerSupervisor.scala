@@ -19,11 +19,15 @@ object ConsumerSupervisor extends AbstractConsumer("consumer-supervisor") {
   def start()(implicit as: ActorSystem, m: Materializer, mongo: Mongo): SubscriptionRef = {
     import as.dispatcher
 
-    implicit val collection: MongoCollection[DoclibDoc] = mongo.database.getCollection(config.getString("mongo.collection"))
+    implicit val collection: MongoCollection[DoclibDoc] =
+      mongo.database.getCollection(config.getString("mongo.collection"))
 
     /** initialise queues **/
-    val upstream: Queue[SupervisorMsg] =
-      new Queue[SupervisorMsg](config.getString("upstream.queue"), Option(config.getString("op-rabbit.topic-exchange-name")))
+    val upstream =
+      Queue[SupervisorMsg](
+        config.getString("upstream.queue"),
+        Option(config.getString("op-rabbit.topic-exchange-name"))
+      )
 
     upstream.subscribe(
       new SupervisorHandler().handle,
