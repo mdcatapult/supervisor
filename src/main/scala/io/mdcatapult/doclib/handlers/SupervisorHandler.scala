@@ -10,12 +10,12 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.doclib.util.DoclibFlags
-import io.mdcatapult.klein.queue.{Envelope, Sendable}
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 class SupervisorHandler()
@@ -48,20 +48,32 @@ class SupervisorHandler()
 
   /**
     * send a message to all if the list is Sendabled
-    * @param id document id to send
+    * @param doc document with id to send
     * @param sendables list of sendables
+    * @param sendableKey doclib flag for the message
     * @return
     */
-  def publish(id: String, sendables: Sendables): Option[Boolean] =
-    Try(sendables.foreach(s => s.send(DoclibMsg(id)))) match {
+  def publish(doc: DoclibDoc, sendables: Sendables, sendableKey: String): Option[Boolean] = {
+    val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
+    Try(sendables.foreach(s => {
+      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head)
+        s.send(DoclibMsg(doc._id.toHexString))
+      else
+        Some(false)
+    })) match {
       case Success(_) => Some(true)
       case Failure(e) => throw e
     }
-
-  def canSend(sendable: Sendable[Envelope]): Unit = {
-//    config.getConfigList(s"$key.required").asScala
-//    sendable.name
   }
+
+  /**
+    * Has the flag already been queued
+    * @param doc
+    * @param config
+    * @return
+    */
+  def canQueue(doc: DoclibDoc, config: Config): Boolean =
+    doc.getFlag("flag").exists(_.queued)
 
   /**
     * handler for messages from the queue
@@ -75,7 +87,7 @@ class SupervisorHandler()
       _ <- OptionT.liftF(reset(doc, msg))
       updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       (sendableKey, sendables) <- OptionT.fromOption(engine.resolve(updatedDoc))
-      pResult <- OptionT.fromOption(publish(updatedDoc._id.toHexString, sendables))
+      pResult <- OptionT.fromOption(publish(updatedDoc, sendables, sendableKey))
     } yield (sendables, pResult)).value.andThen({
       case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
       case Failure(e) => throw e
