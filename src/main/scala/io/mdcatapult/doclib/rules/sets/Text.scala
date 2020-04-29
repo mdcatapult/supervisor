@@ -21,7 +21,7 @@ object Text extends NER[DoclibMsg] {
 
   def unapply(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[Sendables] = {
+  : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (validDocuments.contains(doc.mimetype))
       requiredNer

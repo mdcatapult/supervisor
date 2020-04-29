@@ -8,7 +8,7 @@ import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.Registry
 
 trait RulesEngine {
-  def resolve(doc: DoclibDoc): Option[Sendables]
+  def resolve(doc: DoclibDoc): Option[(String, Sendables)]
 }
 
 object Engine {
@@ -25,19 +25,19 @@ class Engine(implicit config: Config, sys: ActorSystem) extends RulesEngine {
 
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  def resolve(doc: DoclibDoc): Option[Sendables] = doc match {
-    case Archive(qs) => Some(qs.distinct)
-    case Tabular(qs) => Some(qs.distinct)
-    case HTML(qs) => Some(qs.distinct)
-    case XML(qs) => Some(qs.distinct)
-    case Text(qs) => Some(qs.distinct)
-    case Document(qs) => Some(qs.distinct)
-    case PDF(qs) => Some(qs.distinct)
-    case Chemical(qs) => Some(qs.distinct)
-    case Image(qs) => Some(qs.distinct)
-    case Audio(qs) => Some(qs.distinct)
-    case Video(qs) => Some(qs.distinct)
-    case Analytical(qs) => Some(qs.distinct)
+  def resolve(doc: DoclibDoc): Option[(String, Sendables)] = doc match {
+    case Archive(key, qs) => Some((key, qs.distinct))
+    case Tabular(key, qs) => Some((key, qs.distinct))
+    case HTML(key, qs) => Some((key, qs.distinct))
+    case XML(key, qs) => Some((key, qs.distinct))
+    case Text(key, qs) => Some((key, qs.distinct))
+    case Document(key, qs) => Some((key, qs.distinct))
+    case PDF(key, qs) => Some((key, qs.distinct))
+    case Chemical(key, qs) => Some((key, qs.distinct))
+    case Image(key, qs) => Some((key, qs.distinct))
+    case Audio(key, qs) => Some((key, qs.distinct))
+    case Video(key, qs) => Some((key, qs.distinct))
+    case Analytical(key, qs) => Some((key, qs.distinct))
     case _ => None
   }
 }

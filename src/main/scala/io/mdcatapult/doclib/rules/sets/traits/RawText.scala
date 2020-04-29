@@ -50,7 +50,7 @@ trait RawText [T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredRawTextConversion()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
+  def requiredRawTextConversion()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
     if (convertMimetypes.contains(doc.mimetype)) {
       doTask("supervisor.text", doc)
     } else {

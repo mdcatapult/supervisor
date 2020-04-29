@@ -16,7 +16,7 @@ object Analytical extends SupervisorRule[DoclibMsg] {
     * @param registry Registry
     * @return
     */
-  override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] =
+  override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] =
     if (config.getBoolean("analytical.supervisor"))
       doTask("supervisor.analytical", doc)
     else

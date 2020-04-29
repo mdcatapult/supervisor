@@ -15,7 +15,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class ConsumerSupervisorSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFactory.parseString("""
+class ConsumerSupervisorSpec extends TestKit(ActorSystem("ConsumerSupervisorSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
   """))) with AnyWordSpecLike with BeforeAndAfterAll with MockFactory {
 

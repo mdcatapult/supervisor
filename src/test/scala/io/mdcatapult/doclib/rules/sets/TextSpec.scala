@@ -12,6 +12,7 @@ import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import cats.implicits._
 
 class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -115,22 +116,21 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
 
   "A new text doc " should { "return 3 NER sendables" in {
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file")
-    val result = Text.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 3)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = Text.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 3)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
   "A  text doc which has been NER'd" should { "not be NER'd again" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
 
@@ -139,25 +139,25 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
 
   "A  text doc which has one missing NER flag" should { "have 1 NER sendable" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
-    val result = Text.unapply(d)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = Text.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
   "A  text doc which has all NER flags but without some end timestamp" should { "have no sendables" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now, ended = None)
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers", version = consumerVersion, started = LocalDateTime.now.some, ended = None)
     )
     val d = dummy.copy(mimetype = "text/plain", source = "/dummy/path/to/dummy/file", doclib = docNER)
 

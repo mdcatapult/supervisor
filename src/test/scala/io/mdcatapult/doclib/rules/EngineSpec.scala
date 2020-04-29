@@ -13,6 +13,7 @@ import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import cats.implicits._
 
 class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseString(
   """
@@ -165,10 +166,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   "A non tabular spreadsheet doc" should "return a tsv extract" in {
     Tabular.extractMimetypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 1)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 1)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("tabular.totsv")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -176,10 +177,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
 
   "A tabular doc" should "return NER sendables" in {
     val doc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
-    val result = engine.resolve(doc)
-    assert(result.get.length == 3)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 3)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -187,10 +188,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   "A text doc" should "return NER sendables" in {
     Text.validDocuments.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 3)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 3)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -199,10 +200,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   "An archive doc" should "return archive sendable" in {
     Archive.validMimetypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 1)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 1)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("unarchive")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -211,10 +212,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   "A document doc" should "return rawtext sendable" in {
     rawTextConversions.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 1)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 1)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("rawtext")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -230,7 +231,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now(),
+        started = LocalDateTime.now().some,
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "rawtext",
@@ -240,14 +241,14 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now))
     )
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = doclibFlags)
-    val result = engine.resolve(doc)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("pdf_intermediates")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -262,7 +263,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -273,15 +274,15 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       )
     )
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val result = engine.resolve(doc)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("pdf_figures")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -296,7 +297,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -307,7 +308,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -318,7 +319,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       )
     )
@@ -332,10 +333,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     // TODO are there more mimeteypes?
     List("text/html").foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 3)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 3)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -356,10 +357,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     // TODO not a very exhaustive list of chemical mimetypes. See https://en.wikipedia.org/wiki/Chemical_file_format
     List("chemical/x-inchi ", "chemical/x-chem3d").foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 3)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 3)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -388,10 +389,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   "An XML doc" should "return ner sendables" in {
     XML.validDocuments.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
-      val result = engine.resolve(doc)
-      assert(result.get.length == 3)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = engine.resolve(doc).get
+      assert(result.length == 3)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     })
@@ -427,7 +428,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -438,7 +439,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -449,16 +450,16 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       )
     )
     val engine: RulesEngine = new Engine()
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val result = engine.resolve(doc)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("analytical.supervisor")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -473,7 +474,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -484,7 +485,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now),
         reset = Some(LocalDateTime.now.plusMinutes(10))
       ),
@@ -496,16 +497,16 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now),
         reset = Some(LocalDateTime.now.plusMinutes(10))
       )
     )
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val result = engine.resolve(doc)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("pdf_intermediates")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -518,34 +519,34 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
         DoclibFlag(
           key = "ner.chemblactivityterms",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "ner.chemicalentities",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now),
           reset = Some(LocalDateTime.now.plusMinutes(10))
         ),
         DoclibFlag(
           key = "ner.chemicalidentifiers",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now),
           reset = Some(LocalDateTime.now.plusMinutes(10))
         ),
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now
+          started = LocalDateTime.now.some
         )
       )
     )
-    val result = engine.resolve(doc)
-    assert(result.get.length == 2)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 2)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -559,33 +560,33 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
         DoclibFlag(
           key = "ner.chemblactivityterms",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "ner.chemicalentities",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "ner.chemicalidentifiers",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           reset = Some(LocalDateTime.now.plusMinutes(10))
         )
       )
     )
-    val result = engine.resolve(doc)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = engine.resolve(doc).get
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("tabular.analysis")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -599,25 +600,25 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
         DoclibFlag(
           key = "ner.chemblactivityterms",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "ner.chemicalentities",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "ner.chemicalidentifiers",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)
         ),
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           reset = Some(LocalDateTime.now.minusMinutes(10))
         )
       )

@@ -10,6 +10,7 @@ import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.doclib.util.DoclibFlags
+import io.mdcatapult.klein.queue.{Envelope, Sendable}
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
@@ -57,6 +58,11 @@ class SupervisorHandler()
       case Failure(e) => throw e
     }
 
+  def canSend(sendable: Sendable[Envelope]): Unit = {
+//    config.getConfigList(s"$key.required").asScala
+//    sendable.name
+  }
+
   /**
     * handler for messages from the queue
     * @param msg RabbitMsg
@@ -68,7 +74,7 @@ class SupervisorHandler()
       doc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       _ <- OptionT.liftF(reset(doc, msg))
       updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
-      sendables <- OptionT.fromOption(engine.resolve(updatedDoc))
+      (sendableKey, sendables) <- OptionT.fromOption(engine.resolve(updatedDoc))
       pResult <- OptionT.fromOption(publish(updatedDoc._id.toHexString, sendables))
     } yield (sendables, pResult)).value.andThen({
       case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")

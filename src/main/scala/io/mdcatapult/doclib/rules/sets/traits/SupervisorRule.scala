@@ -3,7 +3,7 @@ package io.mdcatapult.doclib.rules.sets.traits
 import java.time.ZoneOffset
 
 import com.typesafe.config.Config
-import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.klein.queue.{Envelope, Registry}
 
@@ -18,7 +18,7 @@ trait SupervisorRule[T <: Envelope] {
     * @param registry Registry
     * @return
     */
-  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables]
+  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[(String, Sendables)]
 
   /**
     * tests if all flags for key have been completed
@@ -54,13 +54,13 @@ trait SupervisorRule[T <: Envelope] {
     */
   def getSendables(key: String)
                   (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
-  : Sendables =
-    config.getConfigList(s"$key.required").asScala
+  : (String, Sendables) =
+    (key, config.getConfigList(s"$key.required").asScala
       .filter(sendableAllowed)
       .map(r => r.getString("type") match {
         case "queue" => registry.get(r.getString("route"))
         case _ => throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
-      }).toList.asInstanceOf[Sendables]
+      }).toList.asInstanceOf[Sendables])
 
   /**
     * Allow Sendable if there is no existing flag or if flag exists and has reset and
@@ -72,9 +72,9 @@ trait SupervisorRule[T <: Envelope] {
     */
   def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
     if (doc.hasFlag(flagConfig.getString("flag"))) {
-      val flag = doc.getFlag(flagConfig.getString("flag")).head
+      val flag: DoclibFlag = doc.getFlag(flagConfig.getString("flag")).head
       flag.reset match {
-        case Some(time) => time.toEpochSecond(ZoneOffset.UTC) > flag.started.toEpochSecond(ZoneOffset.UTC)
+        case Some(time) => time.toEpochSecond(ZoneOffset.UTC) > flag.started.get.toEpochSecond(ZoneOffset.UTC)
         case None => false
       }
     } else {
@@ -82,10 +82,10 @@ trait SupervisorRule[T <: Envelope] {
     }
   }
 
-  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[Sendables] = {
+  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     getSendables(key) match {
-      case head::rest => Some(head::rest)
+      case (s, head::rest) => Some((s, head::rest))
       case _ => None
     }
   }

@@ -19,7 +19,7 @@ trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] =
+  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] =
     if (mimeTypes.contains(doc.mimetype))
       doTask("supervisor.image_intermediate", doc)
     else
