@@ -6,6 +6,7 @@ import akka.actor._
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import better.files.{File => ScalaFile}
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.handlers.SupervisorHandler
 import io.mdcatapult.doclib.messages.SupervisorMsg
@@ -14,7 +15,7 @@ import io.mdcatapult.doclib.util.ImplicitOrdering.localDateOrdering._
 import io.mdcatapult.doclib.util.{DirectoryDelete, MongoCodecs, nowUtc}
 import io.mdcatapult.klein.mongo.Mongo
 import org.bson.codecs.configuration.CodecRegistry
-import org.mongodb.scala.{Completed, MongoCollection}
+import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
 import org.mongodb.scala.model.Filters.{equal => Mequal}
 import org.mongodb.scala.model.Updates.combine
@@ -23,7 +24,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import cats.implicits._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -240,9 +240,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     )
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
     val msg = SupervisorMsg("1234", Some(List("first.flag", "second.flag")))
-    val result: Option[Completed] = Await.result(collection.insertOne(doc).toFutureOption(), 5.seconds)
-    assert(result.get.toString() == "The operation completed successfully")
-    // reset first and second flags which should also dedup first to the most current one
+    val result = Await.result(collection.insertOne(doc).toFutureOption(), 5.seconds)
+    assert(result.exists(_.wasAcknowledged()))    // reset first and second flags which should also dedup first to the most current one
     Await.result(handler.reset(doc, msg), 5.seconds)
     val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
     val flag = updatedDoc.head.getFlag("first.flag").head
@@ -297,8 +296,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val msg = SupervisorMsg("1234")
 
     val result = Await.result(collection.insertOne(doc).toFutureOption(), 5.seconds)
-    assert(result.get.toString() == "The operation completed successfully")
-
+    assert(result.exists(_.wasAcknowledged()))
     // reset first and second flags which should also dedup first to the most current one
     Await.result(handler.reset(doc, msg), 5.seconds)
 
