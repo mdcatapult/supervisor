@@ -4,7 +4,7 @@ import Release._
 lazy val configVersion = "1.3.2"
 lazy val akkaVersion = "2.6.4"
 lazy val catsVersion = "2.1.0"
-lazy val doclibCommonVersion = "0.0.68-SNAPSHOT"
+lazy val doclibCommonVersion = "0.0.69-SNAPSHOT"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
