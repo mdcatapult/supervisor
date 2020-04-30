@@ -67,13 +67,14 @@ class SupervisorHandler()
   }
 
   /**
-    * Has the flag already been queued
+    * Has the flag already been queued. If it has then we cannot re-queue it ie false.
+    *
     * @param doc
     * @param config
     * @return
     */
   def canQueue(doc: DoclibDoc, config: Config): Boolean =
-    doc.getFlag("flag").exists(_.queued)
+    !doc.getFlag(config.getString("flag")).exists(_.queued)
 
   /**
     * handler for messages from the queue
