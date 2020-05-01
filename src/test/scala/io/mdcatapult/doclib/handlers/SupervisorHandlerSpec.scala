@@ -11,7 +11,7 @@ import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.util.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
-import io.mdcatapult.klein.queue.Registry
+import io.mdcatapult.klein.queue.{Registry, Sendable}
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -50,7 +50,7 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
       |  hash =  "12345"
       |}
       |op-rabbit {
-      |  topic-exchange-name = rabbit
+      |  topic-exchange-name = supervisor-test
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher
@@ -63,8 +63,8 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
       |    throughput = 1
       |  }
       |  connection {
-      |    virtual-host = "doclib"
-      |    hosts = ["rabbit"]
+      |    virtual-host = "supervisor-test"
+      |    hosts = ["localhost"]
       |    username = "doclib"
       |    password = "doclib"
       |    port = 5672
@@ -131,6 +131,8 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   val wrappedCollection: JMongoCollection[DoclibDoc] = stub[JMongoCollection[DoclibDoc]]
   implicit val collection: MongoCollection[DoclibDoc] = MongoCollection[DoclibDoc](wrappedCollection)
 
+  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
+
   val handler = new SupervisorHandler()
 
 
@@ -156,6 +158,14 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
     assert(!handler.canQueue(flagDoc, flagConfig))
+  }
+
+  "A flag which is not queued" can "be publish a message" in {
+    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
+    val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
+    val flagDoc = doc.copy(doclib = List(flag))
+    val sendable: Sendable[DoclibMsg] = registry.get("tabular.totsv")
+    assert(handler.publish(doc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv").get)
   }
 
 }
