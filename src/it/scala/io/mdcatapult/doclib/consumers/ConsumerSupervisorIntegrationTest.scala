@@ -6,7 +6,6 @@ import akka.actor._
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import better.files.Dsl.pwd
 import better.files.{File => ScalaFile}
 import cats.implicits._
 import com.spingo.op_rabbit.SubscriptionRef
@@ -42,34 +41,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   with Matchers
   with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete with Eventually {
 
-  implicit val config: Config = ConfigFactory.parseString(
-    s"""
-      |doclib {
-      |  root: "$pwd/test/supervisor-test"
-      |  remote {
-      |    target-dir: "remote"
-      |    temp-dir: "remote-ingress"
-      |  }
-      |  local {
-      |    target-dir: "local"
-      |    temp-dir: "ingress"
-      |  }
-      |  archive {
-      |    target-dir: "archive"
-      |  }
-      |}
-      |version {
-      |  number = "supervisor-test",
-      |  major = 1,
-      |  minor =  2,
-      |  patch = 3,
-      |  hash =  "12345"
-      |}
-      |mongo {
-      |  database: "supervisor-test"
-      |  collection: "documents"
-      |}
-  """.stripMargin).withFallback(ConfigFactory.load())
+  implicit val config: Config = ConfigFactory.load()
 
   var messagesFromQueue = List[(String, DoclibMsg)]()
 
