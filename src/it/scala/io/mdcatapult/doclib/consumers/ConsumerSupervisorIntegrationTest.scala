@@ -94,6 +94,28 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     response shouldBe a[Message.Ack]
   }
 
+  // Queue for supervisor.flag.three
+  var messagesFromQueueThree = List[(String, DoclibMsg)]()
+
+  val flagThreeQNAme = "supervisor.flag.three"
+
+  val flagThreeQ = Queue[DoclibMsg](flagThreeQNAme, consumerName)
+
+  val subscriptionThree: SubscriptionRef =
+    flagThreeQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueThree ::= key -> msg)
+
+  Await.result(subscriptionThree.initialized, 5.seconds)
+
+  val flagThreeQMessages: Future[ConfirmResponse] = (
+    flagThreeQ.rabbit ? Message.queue(
+      DoclibMsg("test message 2"),
+      queue = flagThreeQNAme)
+    ).mapTo[ConfirmResponse]
+
+  whenReady(flagThreeQMessages) { response =>
+    response shouldBe a[Message.Ack]
+  }
+
   private val timeNow = nowUtc.now().truncatedTo(MILLIS)
 
   def createNewDoc(source: String, mimetype: String): DoclibDoc = {
@@ -264,7 +286,6 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "A flag which is not queued" can "be queued" in {
-//    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
     val flagDoc = dummy.copy(_id = new ObjectId)
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
@@ -279,7 +300,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     }
   }
 
-  "Multiple unqueued flags" should "be queued" in {
+  "Unqueued flags" should "be queued" in {
     val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
     val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
@@ -296,6 +317,34 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+    }
+  }
+
+  "Multiple unqueued flags" should "be queued" in {
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
+    val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+    val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
+    assert(result.exists(_.wasAcknowledged()))
+    val sendableOne: Sendable[DoclibMsg] = flagOneQ
+    val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
+    val sendableThree: Sendable[DoclibMsg] = flagThreeQ
+    val sendables: List[Sendable[DoclibMsg]] = List(
+      sendableOne,
+      sendableTwo,
+      sendableThree
+    )
+    handler.publish(flagDoc, sendables, "flag-test")
+    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test"), 5.seconds)
+    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+    assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.two").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.three").head.queued)
+    assert(docResult.head.doclib.length == 3)
+    eventually {
+      messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueThree should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 
