@@ -3,12 +3,15 @@ package io.mdcatapult.doclib.consumers
 import java.time.temporal.ChronoUnit.MILLIS
 
 import akka.actor._
+import akka.pattern.ask
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import better.files.{File => ScalaFile}
 import cats.implicits._
-import com.spingo.op_rabbit.SubscriptionRef
+import com.spingo.op_rabbit.Message.ConfirmResponse
+import com.spingo.op_rabbit.PlayJsonSupport._
+import com.spingo.op_rabbit.{Message, SubscriptionRef}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.handlers.SupervisorHandler
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
@@ -28,9 +31,9 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
 class ConsumerSupervisorIntegrationTest extends TestKit(ActorSystem("SupervisorIntegrationTest", ConfigFactory.parseString(
@@ -43,20 +46,53 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
   implicit val config: Config = ConfigFactory.load()
 
-  var messagesFromQueue = List[(String, DoclibMsg)]()
-
   implicit val timeout: Timeout = Timeout(5 seconds)
+
+  // Queue for supervisor.flag.one
+  var messagesFromQueueOne = List[(String, DoclibMsg)]()
 
   // Note that we need to include a topic if we want the queue to be created
   val consumerName = Option(config.getString("op-rabbit.topic-exchange-name"))
-  val queueName = "tabular.totsv"
+  val flagOneQNAme = "supervisor.flag.one"
 
-  val tabularQueue = Queue[DoclibMsg](queueName, consumerName)
+  val flagOneQ = Queue[DoclibMsg](flagOneQNAme, consumerName)
 
   val subscription: SubscriptionRef =
-    tabularQueue.subscribe((msg: DoclibMsg, key: String) => messagesFromQueue ::= key -> msg)
+    flagOneQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueOne ::= key -> msg)
 
   Await.result(subscription.initialized, 5.seconds)
+
+  val flagOneQMessages: Future[ConfirmResponse] = (
+    flagOneQ.rabbit ? Message.queue(
+      DoclibMsg("test message"),
+      queue = flagOneQNAme)
+    ).mapTo[ConfirmResponse]
+
+  whenReady(flagOneQMessages) { response =>
+    response shouldBe a[Message.Ack]
+  }
+
+  // Queue for supervisor.flag.two
+  var messagesFromQueueTwo = List[(String, DoclibMsg)]()
+
+  val flagTwoQNAme = "supervisor.flag.two"
+
+  val flagTwoQ = Queue[DoclibMsg](flagTwoQNAme, consumerName)
+
+  val subscriptionTwo: SubscriptionRef =
+    flagTwoQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueTwo ::= key -> msg)
+
+  Await.result(subscriptionTwo.initialized, 5.seconds)
+
+  val flagTwoQMessages: Future[ConfirmResponse] = (
+    flagTwoQ.rabbit ? Message.queue(
+      DoclibMsg("test message 2"),
+      queue = flagTwoQNAme)
+    ).mapTo[ConfirmResponse]
+
+  whenReady(flagTwoQMessages) { response =>
+    response shouldBe a[Message.Ack]
+  }
 
   private val timeNow = nowUtc.now().truncatedTo(MILLIS)
 
@@ -229,16 +265,37 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
   "A flag which is not queued" can "be queued" in {
 //    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
-    val flagDoc = dummy.copy()
+    val flagDoc = dummy.copy(_id = new ObjectId)
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
-    val sendable: Sendable[DoclibMsg] = tabularQueue
-    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv")
-    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv"), 5.seconds)
+    val sendable: Sendable[DoclibMsg] = flagOneQ
+    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test")
+    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test"), 5.seconds)
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
-    assert(docResult.head.getFlag("tabular.totsv").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
+    assert(docResult.head.doclib.length == 1)
     eventually {
-      messagesFromQueue should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueOne should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+    }
+  }
+
+  "Multiple unqueued flags" should "be queued" in {
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
+    val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+    val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
+    assert(result.exists(_.wasAcknowledged()))
+    val sendableOne: Sendable[DoclibMsg] = flagOneQ
+    val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
+    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test")
+    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test"), 5.seconds)
+    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+    assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.two").head.queued)
+    assert(docResult.head.doclib.length == 2)
+    eventually {
+      messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 
