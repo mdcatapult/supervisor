@@ -13,6 +13,7 @@ import io.mdcatapult.doclib.util.DoclibFlags
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.result.UpdateResult
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
@@ -23,6 +24,8 @@ class SupervisorHandler()
                         ec: ExecutionContext,
                         config: Config,
                         collection: MongoCollection[DoclibDoc]) extends LazyLogging {
+
+  class AlreadyQueuedException(docId: ObjectId, flag: String) extends Exception(s"Flag $flag for Document $docId has already been queued")
 
   /**
     * construct the appropriate rule engine based on the supplied config
@@ -47,7 +50,8 @@ class SupervisorHandler()
   }
 
   /**
-    * send a message to all if the list is Sendabled
+    * Send each sendable to its message queue if not already queued.
+    * Set the flag in the doc to queued if a message is sent
     * @param doc document with id to send
     * @param sendables list of sendables
     * @param sendableKey doclib flag for the message
@@ -56,14 +60,25 @@ class SupervisorHandler()
   def publish(doc: DoclibDoc, sendables: Sendables, sendableKey: String): Option[Boolean] = {
     val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
     Try(sendables.foreach(s => {
-      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head)
+      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head) {
         s.send(DoclibMsg(doc._id.toHexString))
-      else
-        Some(false)
+      }
     })) match {
       case Success(_) => Some(true)
       case Failure(e) => throw e
     }
+  }
+
+  def updateQueueStatus(doc: DoclibDoc, sendables: Sendables, sendableKey: String): Future[List[UpdateResult]] = {
+    val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
+    val xs = sendables.map(s => {
+      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head) {
+        new DoclibFlags(flags.filter(r => r.getString("route") == s.name).head.getString("flag")).queue(doc)
+      } else {
+        Future.successful(None)
+      }
+    })
+    Future.sequence(xs).map(_.flatten)
   }
 
   /**
@@ -89,6 +104,7 @@ class SupervisorHandler()
       updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       (sendableKey, sendables) <- OptionT.fromOption(engine.resolve(updatedDoc))
       pResult <- OptionT.fromOption(publish(updatedDoc, sendables, sendableKey))
+      _ <- OptionT.liftF(updateQueueStatus(updatedDoc, sendables, sendableKey))
     } yield (sendables, pResult)).value.andThen({
       case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
       case Failure(e) => throw e

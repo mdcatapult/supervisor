@@ -11,7 +11,7 @@ import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.util.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
-import io.mdcatapult.klein.queue.{Registry, Sendable}
+import io.mdcatapult.klein.queue.Registry
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -131,14 +131,12 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   val wrappedCollection: JMongoCollection[DoclibDoc] = stub[JMongoCollection[DoclibDoc]]
   implicit val collection: MongoCollection[DoclibDoc] = MongoCollection[DoclibDoc](wrappedCollection)
 
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
-
   val handler = new SupervisorHandler()
 
 
   implicit val doc = DoclibDoc(
     _id = new ObjectId(),
-    source = "dummt.txt",
+    source = "dummy.txt",
     hash = "01234567890",
     derivative = false,
     created = LocalDateTime.now(),
@@ -158,14 +156,6 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
     assert(!handler.canQueue(flagDoc, flagConfig))
-  }
-
-  "A flag which is not queued" can "be publish a message" in {
-    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
-    val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
-    val flagDoc = doc.copy(doclib = List(flag))
-    val sendable: Sendable[DoclibMsg] = registry.get("tabular.totsv")
-    assert(handler.publish(doc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv").get)
   }
 
 }

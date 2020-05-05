@@ -5,15 +5,19 @@ import java.time.temporal.ChronoUnit.MILLIS
 import akka.actor._
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
+import akka.util.Timeout
+import better.files.Dsl.pwd
 import better.files.{File => ScalaFile}
 import cats.implicits._
+import com.spingo.op_rabbit.SubscriptionRef
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.handlers.SupervisorHandler
-import io.mdcatapult.doclib.messages.SupervisorMsg
+import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag, FileAttrs}
 import io.mdcatapult.doclib.util.ImplicitOrdering.localDateOrdering._
 import io.mdcatapult.doclib.util.{DirectoryDelete, MongoCodecs, nowUtc}
 import io.mdcatapult.klein.mongo.Mongo
+import io.mdcatapult.klein.queue.{Queue, Registry, Sendable}
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -21,13 +25,14 @@ import org.mongodb.scala.model.Filters.{equal => Mequal}
 import org.mongodb.scala.model.Updates.combine
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class ConsumerSupervisorIntegrationTest extends TestKit(ActorSystem("SupervisorIntegrationTest", ConfigFactory.parseString(
   """
@@ -35,12 +40,12 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 """))) with ImplicitSender
   with AnyFlatSpecLike
   with Matchers
-  with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete {
+  with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete with Eventually {
 
   implicit val config: Config = ConfigFactory.parseString(
-    """
+    s"""
       |doclib {
-      |  root: "./test"
+      |  root: "$pwd/test/supervisor-test"
       |  remote {
       |    target-dir: "remote"
       |    temp-dir: "remote-ingress"
@@ -63,86 +68,23 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       |mongo {
       |  database: "supervisor-test"
       |  collection: "documents"
-      |  connection {
-      |    username: "doclib"
-      |    password: "doclib"
-      |    database: "admin"
-      |    hosts: ["localhost"]
-      |  }
       |}
-      |supervisor {
-      |  archive: {
-      |    required: [{
-      |      flag: "unarchived"
-      |      route: "doclib.unarchive"
-      |      type: "queue"
-      |    }]
-      |  }
-      |  tabular: {
-      |    totsv: {
-      |      required: [{
-      |        flag: "tabular.totsv"
-      |        route: "doclib.tabular.totsv"
-      |        type: "queue"
-      |      }]
-      |    }
-      |    analyse {
-      |      required: [{
-      |        flag: "tabular.analysis"
-      |        route: "doclib.tabular.analysis"
-      |        type: "queue"
-      |      }]
-      |    }
-      |  }
-      |  html: {
-      |    required: [{
-      |      flag: "html.screenshot"
-      |      route: "doclib.html.screenshot"
-      |      type: "queue"
-      |    },{
-      |      flag: "html.render"
-      |      route: "doclib.html.render"
-      |      type: "queue"
-      |    }]
-      |  }
-      |  xml: {
-      |    required: []
-      |  }
-      |  text: {
-      |    required: []
-      |  }
-      |  document: {
-      |    required: []
-      |  }
-      |  chemical: {
-      |    required: []
-      |  }
-      |  image: {
-      |    required: []
-      |  }
-      |  audio: {
-      |    required: []
-      |  }
-      |  video: {
-      |    required: []
-      |  }
-      |  ner: {
-      |    required: [{
-      |      flag: "ner.chemblactivityterms"
-      |      route: "doclib.ner.chemblactivityterms"
-      |      type: "queue"
-      |    },{
-      |      flag: "ner.chemicalentities"
-      |      route: "doclib.ner.chemicalentities"
-      |      type: "queue"
-      |    },{
-      |      flag: "ner.chemicalidentifiers"
-      |      route: "doclib.ner.chemicalidentifiers"
-      |      type: "queue"
-      |    }]
-      |  }
-      |}
-  """.stripMargin)
+  """.stripMargin).withFallback(ConfigFactory.load())
+
+  var messagesFromQueue = List[(String, DoclibMsg)]()
+
+  implicit val timeout: Timeout = Timeout(5 seconds)
+
+  // Note that we need to include a topic if we want the queue to be created
+  val consumerName = Option(config.getString("op-rabbit.topic-exchange-name"))
+  val queueName = "tabular.totsv"
+
+  val tabularQueue = Queue[DoclibMsg](queueName, consumerName)
+
+  val subscription: SubscriptionRef =
+    tabularQueue.subscribe((msg: DoclibMsg, key: String) => messagesFromQueue ::= key -> msg)
+
+  Await.result(subscription.initialized, 5.seconds)
 
   private val timeNow = nowUtc.now().truncatedTo(MILLIS)
 
@@ -174,6 +116,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   implicit val collection: MongoCollection[DoclibDoc] = mongo.database.getCollection(config.getString("mongo.collection"))
 
   implicit val m: Materializer = Materializer(system)
+
+  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val handler = new SupervisorHandler()
 
@@ -309,6 +253,21 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
     val secondFlag = updatedDoc.head.getFlag("second.flag").head
     secondFlag.reset should be (None)
+  }
+
+  "A flag which is not queued" can "be queued" in {
+//    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
+    val flagDoc = dummy.copy()
+    val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
+    assert(result.exists(_.wasAcknowledged()))
+    val sendable: Sendable[DoclibMsg] = tabularQueue
+    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv")
+    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "tabular.totsv"), 5.seconds)
+    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+    assert(docResult.head.getFlag("tabular.totsv").head.queued)
+    eventually {
+      messagesFromQueue should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+    }
   }
 
 }
