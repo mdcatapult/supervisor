@@ -7,7 +7,7 @@ import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.mongodb.reactivestreams.client.{MongoCollection => JMongoCollection}
 import com.typesafe.config.{Config, ConfigFactory}
-import io.mdcatapult.doclib.messages.DoclibMsg
+import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.util.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
@@ -148,14 +148,24 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
     val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"))
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
-    assert(handler.canQueue(flagDoc, flagConfig))
+    val msg = SupervisorMsg(id = "1234")
+    assert(handler.canQueue(flagDoc, flagConfig, msg))
   }
 
   "A flag which has been queued already" can "not be queued " in {
     val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
-    assert(!handler.canQueue(flagDoc, flagConfig))
+    val msg = SupervisorMsg(id = "1234")
+    assert(!handler.canQueue(flagDoc, flagConfig, msg))
+  }
+
+  "A flag which is already queued but has been reset" can "be queued " in {
+    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
+    val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
+    val flagDoc = doc.copy(doclib = List(flag))
+    val msg = SupervisorMsg(id = "1234", Some(List("tabular.totsv")))
+    assert(handler.canQueue(flagDoc, flagConfig, msg))
   }
 
 }

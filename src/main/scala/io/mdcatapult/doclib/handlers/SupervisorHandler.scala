@@ -57,10 +57,10 @@ class SupervisorHandler()
     * @param sendableKey doclib flag for the message
     * @return
     */
-  def publish(doc: DoclibDoc, sendables: Sendables, sendableKey: String): Option[Boolean] = {
+  def publish(doc: DoclibDoc, sendables: Sendables, sendableKey: String, msg: SupervisorMsg): Option[Boolean] = {
     val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
     Try(sendables.foreach(s => {
-      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head) {
+      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf, msg)).head) {
         s.send(DoclibMsg(doc._id.toHexString))
       }
     })) match {
@@ -69,10 +69,10 @@ class SupervisorHandler()
     }
   }
 
-  def updateQueueStatus(doc: DoclibDoc, sendables: Sendables, sendableKey: String): Future[List[UpdateResult]] = {
+  def updateQueueStatus(doc: DoclibDoc, sendables: Sendables, sendableKey: String, msg: SupervisorMsg): Future[List[UpdateResult]] = {
     val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
     val xs = sendables.map(s => {
-      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf)).head) {
+      if (flags.filter(r => r.getString("route") == s.name).map(conf => canQueue(doc, conf, msg)).head) {
         new DoclibFlags(flags.filter(r => r.getString("route") == s.name).head.getString("flag")).queue(doc)
       } else {
         Future.successful(None)
@@ -83,13 +83,14 @@ class SupervisorHandler()
 
   /**
     * Has the flag already been queued. If it has then we cannot re-queue it ie false.
+    * If the flag is being reset then we always re-queue
     *
     * @param doc
     * @param config
     * @return
     */
-  def canQueue(doc: DoclibDoc, config: Config): Boolean =
-    !doc.getFlag(config.getString("flag")).exists(_.queued)
+  def canQueue(doc: DoclibDoc, config: Config, msg: SupervisorMsg): Boolean =
+    msg.reset.exists(_.contains(config.getString("flag"))) || !doc.getFlag(config.getString("flag")).exists(_.queued)
 
   /**
     * handler for messages from the queue
@@ -103,8 +104,8 @@ class SupervisorHandler()
       _ <- OptionT.liftF(reset(doc, msg))
       updatedDoc <- OptionT(collection.find(equal("_id", new ObjectId(msg.id))).first().toFutureOption())
       (sendableKey, sendables) <- OptionT.fromOption(engine.resolve(updatedDoc))
-      pResult <- OptionT.fromOption(publish(updatedDoc, sendables, sendableKey))
-      _ <- OptionT.liftF(updateQueueStatus(updatedDoc, sendables, sendableKey))
+      pResult <- OptionT.fromOption(publish(updatedDoc, sendables, sendableKey, msg))
+      _ <- OptionT.liftF(updateQueueStatus(updatedDoc, sendables, sendableKey, msg))
     } yield (sendables, pResult)).value.andThen({
       case Success(r) => logger.info(s"Processed ${msg.id}. Sent ${r.getOrElse("no messages downstream.")}")
       case Failure(e) => throw e

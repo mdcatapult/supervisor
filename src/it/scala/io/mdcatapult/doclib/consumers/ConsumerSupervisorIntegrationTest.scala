@@ -26,7 +26,7 @@ import org.mongodb.scala.bson.ObjectId
 import org.mongodb.scala.model.Filters.{equal => Mequal}
 import org.mongodb.scala.model.Updates.combine
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -42,7 +42,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 """))) with ImplicitSender
   with AnyFlatSpecLike
   with Matchers
-  with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete with Eventually {
+  with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete with Eventually with BeforeAndAfterEach {
 
   implicit val config: Config = ConfigFactory.load()
 
@@ -163,6 +163,12 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
   override def beforeAll(): Unit = {
     Await.result(collection.deleteMany(combine()).toFuture(), Duration.Inf) // empty collection
+  }
+
+  override def beforeEach(): Unit = {
+    messagesFromQueueOne.empty
+    messagesFromQueueTwo.empty
+    messagesFromQueueThree.empty
   }
 
   "A supervisor message with reset" should "update the flags reset timestamp" in {
@@ -290,8 +296,9 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
     val sendable: Sendable[DoclibMsg] = flagOneQ
-    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test")
-    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test"), 5.seconds)
+    val msg = new SupervisorMsg(id = "1234")
+    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test", msg)
+    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test", msg), 5.seconds)
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
     assert(docResult.head.doclib.length == 1)
@@ -308,8 +315,9 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     assert(result.exists(_.wasAcknowledged()))
     val sendableOne: Sendable[DoclibMsg] = flagOneQ
     val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
-    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test")
-    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test"), 5.seconds)
+    val msg = new SupervisorMsg(id = "1234")
+    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test", msg)
+    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test", msg), 5.seconds)
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.queued)
@@ -334,8 +342,9 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       sendableTwo,
       sendableThree
     )
-    handler.publish(flagDoc, sendables, "flag-test")
-    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test"), 5.seconds)
+    val msg = new SupervisorMsg(id = "1234")
+    handler.publish(flagDoc, sendables, "flag-test", msg)
+    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test", msg), 5.seconds)
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.queued)
@@ -343,6 +352,35 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     assert(docResult.head.doclib.length == 3)
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueThree should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+    }
+  }
+
+  "A flag which has been queued already but is reset" can "be queued" in {
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = true)
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = false)
+    val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+    val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
+    assert(result.exists(_.wasAcknowledged()))
+    val sendableOne: Sendable[DoclibMsg] = flagOneQ
+    val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
+    val sendableThree: Sendable[DoclibMsg] = flagThreeQ
+    val sendables: List[Sendable[DoclibMsg]] = List(
+      sendableOne,
+      sendableTwo,
+      sendableThree
+    )
+    val msg = new SupervisorMsg(id = "1234", reset = Some(List("supervisor.flag.one")))
+    handler.publish(flagDoc, sendables, "flag-test", msg)
+    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test", msg), 5.seconds)
+    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+    assert(docResult.head.getFlag("supervisor.flag.one").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.two").head.queued)
+    assert(docResult.head.getFlag("supervisor.flag.three").head.queued)
+    assert(docResult.head.doclib.length == 3)
+    eventually {
+      messagesFromQueueOne should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueThree should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
     }
