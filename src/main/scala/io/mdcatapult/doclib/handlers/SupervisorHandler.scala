@@ -90,7 +90,7 @@ class SupervisorHandler()
     * @return
     */
   def canQueue(doc: DoclibDoc, config: Config, msg: SupervisorMsg): Boolean =
-    msg.reset.exists(_.contains(config.getString("flag"))) || !doc.getFlag(config.getString("flag")).exists(_.queued)
+    msg.reset.exists(_.contains(config.getString("flag"))) || !doc.getFlag(config.getString("flag")).exists(_.isQueued)
 
   /**
     * handler for messages from the queue
