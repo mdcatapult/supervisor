@@ -26,10 +26,10 @@ import org.mongodb.scala.bson.ObjectId
 import org.mongodb.scala.model.Filters.{equal => Mequal}
 import org.mongodb.scala.model.Updates.combine
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -49,20 +49,20 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   implicit val timeout: Timeout = Timeout(5 seconds)
 
   // Queue for supervisor.flag.one
-  var messagesFromQueueOne = List[(String, DoclibMsg)]()
+  private var messagesFromQueueOne = List[(String, DoclibMsg)]()
 
   // Note that we need to include a topic if we want the queue to be created
-  val consumerName = Option(config.getString("op-rabbit.topic-exchange-name"))
-  val flagOneQNAme = "supervisor.flag.one"
+  private val consumerName = Option(config.getString("op-rabbit.topic-exchange-name"))
+  private val flagOneQNAme = "supervisor.flag.one"
 
-  val flagOneQ = Queue[DoclibMsg](flagOneQNAme, consumerName)
+  private val flagOneQ = Queue[DoclibMsg](flagOneQNAme, consumerName)
 
-  val subscription: SubscriptionRef =
+  private val subscription: SubscriptionRef =
     flagOneQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueOne ::= key -> msg)
 
   Await.result(subscription.initialized, 5.seconds)
 
-  val flagOneQMessages: Future[ConfirmResponse] = (
+  private val flagOneQMessages: Future[ConfirmResponse] = (
     flagOneQ.rabbit ? Message.queue(
       DoclibMsg("test message"),
       queue = flagOneQNAme)
@@ -73,13 +73,13 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   // Queue for supervisor.flag.two
-  var messagesFromQueueTwo = List[(String, DoclibMsg)]()
+  private var messagesFromQueueTwo = List[(String, DoclibMsg)]()
 
-  val flagTwoQNAme = "supervisor.flag.two"
+  private val flagTwoQNAme = "supervisor.flag.two"
 
-  val flagTwoQ = Queue[DoclibMsg](flagTwoQNAme, consumerName)
+  private val flagTwoQ = Queue[DoclibMsg](flagTwoQNAme, consumerName)
 
-  val subscriptionTwo: SubscriptionRef =
+  private val subscriptionTwo: SubscriptionRef =
     flagTwoQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueTwo ::= key -> msg)
 
   Await.result(subscriptionTwo.initialized, 5.seconds)
@@ -95,18 +95,18 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   // Queue for supervisor.flag.three
-  var messagesFromQueueThree = List[(String, DoclibMsg)]()
+  private var messagesFromQueueThree = List[(String, DoclibMsg)]()
 
-  val flagThreeQNAme = "supervisor.flag.three"
+  private val flagThreeQNAme = "supervisor.flag.three"
 
-  val flagThreeQ = Queue[DoclibMsg](flagThreeQNAme, consumerName)
+  private val flagThreeQ = Queue[DoclibMsg](flagThreeQNAme, consumerName)
 
-  val subscriptionThree: SubscriptionRef =
+  private val subscriptionThree: SubscriptionRef =
     flagThreeQ.subscribe((msg: DoclibMsg, key: String) => messagesFromQueueThree ::= key -> msg)
 
   Await.result(subscriptionThree.initialized, 5.seconds)
 
-  val flagThreeQMessages: Future[ConfirmResponse] = (
+  private val flagThreeQMessages: Future[ConfirmResponse] = (
     flagThreeQ.rabbit ? Message.queue(
       DoclibMsg("test message 2"),
       queue = flagThreeQNAme)
@@ -149,8 +149,6 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val handler = new SupervisorHandler()
-
   private val dummy = DoclibDoc(
     _id = new ObjectId,
     source = "dummy.txt",
@@ -165,13 +163,9 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     Await.result(collection.deleteMany(combine()).toFuture(), Duration.Inf) // empty collection
   }
 
-  override def beforeEach(): Unit = {
-    messagesFromQueueOne.empty
-    messagesFromQueueTwo.empty
-    messagesFromQueueThree.empty
-  }
-
   "A supervisor message with reset" should "update the flags reset timestamp" in {
+    val handler = SupervisorHandler()
+
     val flags = List(
       DoclibFlag(
         key = "first.flag",
@@ -236,6 +230,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "A supervisor message without reset" should "not reset the flags" in {
+    val handler = SupervisorHandler()
+
     val flags = List(
       DoclibFlag(
         key = "first.flag",
@@ -292,13 +288,23 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "A flag which is not queued" can "be queued" in {
-    val flagDoc = dummy.copy(_id = new ObjectId)
+    val flagDoc = dummy.copy(_id = new ObjectId())
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
+
     val sendable: Sendable[DoclibMsg] = flagOneQ
     val msg = new SupervisorMsg(id = "1234")
-    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test", msg)
-    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendable), "flag-test", msg), 5.seconds)
+
+    val handler = new SupervisorHandler(
+      (doc: DoclibDoc) =>
+        if (doc == flagDoc)
+          Option("flag-test" -> List(sendable))
+        else
+          None
+    )
+
+    Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
+
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.doclib.length == 1)
@@ -311,17 +317,30 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
+
     val sendableOne: Sendable[DoclibMsg] = flagOneQ
     val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
     val msg = new SupervisorMsg(id = "1234")
-    handler.publish(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test", msg)
-    Await.result(handler.updateQueueStatus(flagDoc, List[Sendable[DoclibMsg]](sendableOne, sendableTwo), "flag-test", msg), 5.seconds)
+
+    val handler = new SupervisorHandler(
+      (doc: DoclibDoc) =>
+        if (doc == flagDoc)
+          Option("flag-test" -> List(sendableOne, sendableTwo))
+        else
+          None
+    )
+
+    Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
+
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.isQueued)
     assert(docResult.head.doclib.length == 2)
+
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
@@ -332,8 +351,10 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
+
     val sendableOne: Sendable[DoclibMsg] = flagOneQ
     val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
     val sendableThree: Sendable[DoclibMsg] = flagThreeQ
@@ -343,13 +364,24 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       sendableThree
     )
     val msg = new SupervisorMsg(id = "1234")
-    handler.publish(flagDoc, sendables, "flag-test", msg)
-    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test", msg), 5.seconds)
+
+    val handler = new SupervisorHandler(
+      (doc: DoclibDoc) =>
+        if (doc == flagDoc)
+          Option("flag-test" -> sendables)
+        else
+          None
+    )
+
+    Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
+
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.three").head.isQueued)
     assert(docResult.head.doclib.length == 3)
+
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
@@ -361,8 +393,10 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
+
     val sendableOne: Sendable[DoclibMsg] = flagOneQ
     val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
     val sendableThree: Sendable[DoclibMsg] = flagThreeQ
@@ -371,14 +405,26 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       sendableTwo,
       sendableThree
     )
+
     val msg = new SupervisorMsg(id = "1234", reset = Some(List("supervisor.flag.one")))
-    handler.publish(flagDoc, sendables, "flag-test", msg)
-    Await.result(handler.updateQueueStatus(flagDoc, sendables, "flag-test", msg), 5.seconds)
+
+    val handler = new SupervisorHandler(
+      (doc: DoclibDoc) =>
+        if (doc == flagDoc)
+          Option("flag-test" -> sendables)
+        else
+          None
+    )
+
+    Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
+
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.three").head.isQueued)
     assert(docResult.head.doclib.length == 3)
+
     eventually {
       messagesFromQueueOne should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))

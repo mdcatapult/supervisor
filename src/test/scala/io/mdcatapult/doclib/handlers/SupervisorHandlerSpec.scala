@@ -131,10 +131,9 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   val wrappedCollection: JMongoCollection[DoclibDoc] = stub[JMongoCollection[DoclibDoc]]
   implicit val collection: MongoCollection[DoclibDoc] = MongoCollection[DoclibDoc](wrappedCollection)
 
-  val handler = new SupervisorHandler()
+  private val handler = SupervisorHandler()
 
-
-  implicit val doc = DoclibDoc(
+  implicit val doc: DoclibDoc = DoclibDoc(
     _id = new ObjectId(),
     source = "dummy.txt",
     hash = "01234567890",

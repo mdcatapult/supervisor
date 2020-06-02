@@ -15,7 +15,7 @@ lazy val root = (project in file("."))
   .settings(
     Defaults.itSettings,
     name              := "consumer-supervisor",
-    scalaVersion      := "2.13.1",
+    scalaVersion      := "2.13.2",
     scalacOptions     ++= Seq(
       "-encoding", "utf-8",
       "-unchecked",

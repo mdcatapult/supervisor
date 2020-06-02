@@ -30,7 +30,7 @@ object ConsumerSupervisor extends AbstractConsumer("consumer-supervisor") {
       )
 
     upstream.subscribe(
-      new SupervisorHandler().handle,
+      SupervisorHandler().handle,
       config.getInt("upstream.concurrent")
     )
   }
