@@ -55,8 +55,8 @@ class SupervisorHandler(engine: RulesEngine)
   }
 
   /**
-    * Send each sendable to its message queue if not already queued.
-    * Set the flag in the doc to queued if a message is sent
+    * Send each sendable to its message queue.
+    *
     * @param doc document with id to send
     * @return
     */
@@ -69,6 +69,13 @@ class SupervisorHandler(engine: RulesEngine)
     }
   }
 
+  /**
+    * Set the flag queued status in the doc to true for each sendable
+    *
+    * @param sendableConfigs
+    * @param doc
+    * @return
+    */
   def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Future[Seq[UpdateResult]] = {
     val flags = sendableConfigs.map { _._2.getString("flag") }
 
@@ -77,6 +84,14 @@ class SupervisorHandler(engine: RulesEngine)
     Future.sequence(docs).map(_.flatten)
   }
 
+  /**
+    * Returns a sequence of sendable message -> queue config for flags that are
+    * not currently queued or are reset
+    *
+    * @param doc
+    * @param msg
+    * @return
+    */
   def sendableConfig(doc: DoclibDoc, msg: SupervisorMsg): Seq[(Sendable[DoclibMsg],Config)] = {
 
     engine.resolve(doc) match {
@@ -113,12 +128,25 @@ class SupervisorHandler(engine: RulesEngine)
       !doc.getFlag(flagName).exists(_.isQueued)
   }
 
+  /**
+    * Find the supervisor config block for a particular queue
+    *
+    * @param sendable
+    * @param sendableKey
+    * @return Config
+    */
   private def routeConfig(sendable: Sendable[DoclibMsg], sendableKey: String): Option[Config] = {
     val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
 
     flags.find(_.getString("route") == sendable.name)
   }
 
+  /**
+    * Find existing doc for supervisor message, reset it and then return updated doc.
+    *
+    * @param msg
+    * @return Doclib doc
+    */
   private def readResetDoc(msg: SupervisorMsg): Future[Option[DoclibDoc]] = {
 
     def read() =
@@ -131,6 +159,13 @@ class SupervisorHandler(engine: RulesEngine)
     } yield updatedDoc
   }
 
+  /**
+    * Send messages to the appropriate queue and update the queued status for the doclib flags
+    *
+    * @param d
+    * @param msg
+    * @return
+    */
   def sendMessages(d: DoclibDoc, msg: SupervisorMsg): Future[(Seq[(Sendable[DoclibMsg], Config)], Boolean)] = {
     val sc: Seq[(Sendable[DoclibMsg], Config)] = sendableConfig(d, msg)
     val publishResult = publish(sc, d)
