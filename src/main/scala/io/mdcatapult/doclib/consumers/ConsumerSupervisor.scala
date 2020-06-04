@@ -22,7 +22,6 @@ object ConsumerSupervisor extends AbstractConsumer("consumer-supervisor") {
     implicit val collection: MongoCollection[DoclibDoc] =
       mongo.database.getCollection(config.getString("mongo.collection"))
 
-    /** initialise queues **/
     val upstream =
       Queue[SupervisorMsg](
         config.getString("upstream.queue"),
