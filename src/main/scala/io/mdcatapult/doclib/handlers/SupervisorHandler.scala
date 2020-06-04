@@ -136,7 +136,7 @@ class SupervisorHandler(engine: RulesEngine)
     * @return Config
     */
   private def routeConfig(sendable: Sendable[DoclibMsg], sendableKey: String): Option[Config] = {
-    val flags = config.getConfigList(s"supervisor.$sendableKey.required").asScala
+    val flags = config.getConfigList(s"$sendableKey.required").asScala
 
     flags.find(_.getString("route") == sendable.name)
   }
