@@ -72,8 +72,8 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Set the flag queued status in the doc to true for each sendable
     *
-    * @param sendableConfigs
-    * @param doc
+    * @param sendableConfigs sendable messages paired with their config
+    * @param doc document with id to send
     * @return
     */
   def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Future[Seq[UpdateResult]] = {
@@ -88,8 +88,8 @@ class SupervisorHandler(engine: RulesEngine)
     * Returns a sequence of sendable message -> queue config for flags that are
     * not currently queued or are reset
     *
-    * @param doc
-    * @param msg
+    * @param doc document with id to send
+    * @param msg incoming message from Rabbit
     * @return
     */
   def sendableConfig(doc: DoclibDoc, msg: SupervisorMsg): Seq[(Sendable[DoclibMsg],Config)] = {
@@ -131,8 +131,8 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Find the supervisor config block for a particular queue
     *
-    * @param sendable
-    * @param sendableKey
+    * @param sendable message that can be sent
+    * @param sendableKey flag key of sendable
     * @return Config
     */
   private def routeConfig(sendable: Sendable[DoclibMsg], sendableKey: String): Option[Config] = {
@@ -144,8 +144,8 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Find existing doc for supervisor message, reset it and then return updated doc.
     *
-    * @param msg
-    * @return Doclib doc
+    * @param msg incoming message from Rabbit
+    * @return Doclib doc read from Mongo
     */
   private def readResetDoc(msg: SupervisorMsg): Future[Option[DoclibDoc]] = {
 
@@ -162,8 +162,8 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Send messages to the appropriate queue and update the queued status for the doclib flags
     *
-    * @param d
-    * @param msg
+    * @param d document wit id to send
+    * @param msg incoming message from Rabbit
     * @return
     */
   def sendMessages(d: DoclibDoc, msg: SupervisorMsg): Future[(Seq[(Sendable[DoclibMsg], Config)], Boolean)] = {
@@ -177,7 +177,7 @@ class SupervisorHandler(engine: RulesEngine)
 
   /**
     * handler for messages from the queue
-    * @param msg RabbitMsg
+    * @param msg incoming message from Rabbit
     * @param key String
     * @return
     */
