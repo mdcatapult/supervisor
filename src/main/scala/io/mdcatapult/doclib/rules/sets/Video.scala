@@ -14,7 +14,7 @@ object Video extends SupervisorRule[DoclibMsg] {
 
   def unapply(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[Sendables] =
+  : Option[(String, Sendables)] =
     if (isVideo.findFirstIn(doc.mimetype).isEmpty)
       None
     else

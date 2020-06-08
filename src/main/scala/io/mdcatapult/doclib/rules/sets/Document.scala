@@ -10,7 +10,7 @@ object Document extends RawText[DoclibMsg] {
 
   def unapply(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[Sendables] = {
+  : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     requiredRawTextConversion match {
       case Some(sendables) => Some(sendables)

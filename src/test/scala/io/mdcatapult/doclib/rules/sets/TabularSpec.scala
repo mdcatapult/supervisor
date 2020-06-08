@@ -12,6 +12,7 @@ import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import cats.implicits._
 
 class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -122,7 +123,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
 
   "An un-started Tabular TSV doc" should { "return a tsv sendable" in {
     implicit val d: DoclibDoc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
-    val result = Tabular.getSendables("supervisor.tabular.totsv")
+    val (key, result) = Tabular.getSendables("supervisor.tabular.totsv")
     assert(result.length == 1)
     assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
     assert(result.forall(s =>
@@ -138,7 +139,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         DoclibFlag(
           key = "tabular.totsv",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = None
         )
       )
@@ -155,27 +156,27 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         DoclibFlag(
           key = "tabular.totsv",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now())),
       DoclibFlag(
         key = "ner.chemblactivityterms",
         version = consumerVersion,
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "ner.chemicalentities",
         version = consumerVersion,
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "ner.chemicalidentifiers",
         version = consumerVersion,
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)),
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now())
+          started = LocalDateTime.now().some)
       ))
 
     Tabular.requiredAnalysis() should be(None)
@@ -189,12 +190,12 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         DoclibFlag(
           key = "tabular.totsv",
           version = consumerVersion,
-          started = LocalDateTime.now,
+          started = LocalDateTime.now.some,
           ended = Some(LocalDateTime.now)),
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now(),
+          started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())),
       ))
     val result = Archive.unapply(d)
@@ -212,16 +213,15 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         DoclibFlag(
           key = "tabular.analysis",
           version = consumerVersion,
-          started = LocalDateTime.now(),
+          started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())),
       ))
-    val result = Tabular.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "tabular.totsv")
+    val (key, result) = Tabular.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.head.isInstanceOf[Queue[DoclibMsg]])
+    assert(result.head.asInstanceOf[Queue[DoclibMsg]].name == "tabular.totsv")
   }}
 
   "An extracted spreadsheet" should { "return None" in {
@@ -232,7 +232,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
         DoclibFlag(
           key = "tabular.totsv",
           version = consumerVersion,
-          started = LocalDateTime.now(),
+          started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())
         )))
     val result = Tabular.unapply(d)
@@ -241,31 +241,29 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
 
   "A tabular doc which has not been NER'd " should { "return 3 NER sendables" in {
     val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
-    val result = Tabular.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 3)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = Tabular.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 3)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
 
   "A  tabular doc which has been NER'd" should { "be analysed and not NER'd" in {
     val docNER = List(
-      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalentities",  version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now)),
-      DoclibFlag(key = "ner.chemicalidentifiers",  version = consumerVersion, started = LocalDateTime.now, ended = Some(LocalDateTime.now))
+      DoclibFlag(key = "ner.chemblactivityterms", version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalentities",  version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now)),
+      DoclibFlag(key = "ner.chemicalidentifiers",  version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file", doclib = docNER)
-    val result = Tabular.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = Tabular.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("tabular.analysis")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -286,34 +284,34 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           DoclibFlag(
             key = "ner.chemblactivityterms",
             version = consumerVersion,
-            started = LocalDateTime.now,
+            started = LocalDateTime.now.some,
             ended = Some(LocalDateTime.now)
           ),
           DoclibFlag(
             key = "ner.chemicalentities",
             version = consumerVersion,
-            started = LocalDateTime.now,
+            started = LocalDateTime.now.some,
             ended = Some(LocalDateTime.now),
             reset = Some(LocalDateTime.now.plusMinutes(10))
           ),
           DoclibFlag(
             key = "ner.chemicalidentifiers",
             version = consumerVersion,
-            started = LocalDateTime.now,
+            started = LocalDateTime.now.some,
             ended = Some(LocalDateTime.now),
             reset = Some(LocalDateTime.now.plusMinutes(10))
           ),
             DoclibFlag(
             key = "tabular.analysis",
             version = consumerVersion,
-            started = LocalDateTime.now
+            started = LocalDateTime.now.some
           )
         )
       )
-      val result = Tabular.unapply(doc)
-      assert(result.get.length == 2)
-      assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-      assert(result.get.forall(s =>
+      val (key, result) = Tabular.unapply(doc).get
+      assert(result.length == 2)
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s =>
         List("ner.chemicalentities","ner.chemicalidentifiers")
           .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
     }

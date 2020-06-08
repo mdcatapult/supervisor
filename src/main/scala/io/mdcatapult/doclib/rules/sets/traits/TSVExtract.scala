@@ -29,7 +29,7 @@ trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
+  def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
     if (extractMimetypes.contains(doc.mimetype)) {
       doTask("supervisor.tabular.totsv", doc)
     } else {

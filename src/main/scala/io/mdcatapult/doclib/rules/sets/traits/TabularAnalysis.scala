@@ -20,7 +20,7 @@ trait TabularAnalysis[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredAnalysis()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] =
+  def requiredAnalysis()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] =
     if (analyseMimetypes.contains(doc.mimetype))
       doTask("supervisor.tabular.analyse", doc)
     else
