@@ -24,7 +24,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     * @param registry Registry
     * @return
     */
-  def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[Sendables] = {
+  def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
     // NER first then analysis but only on text/tab-*
     implicit val document: DoclibDoc = doc
 
@@ -47,7 +47,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     */
   def unapply(doc: DoclibDoc)
   (implicit config: Config, registry: Registry[DoclibMsg])
-        : Option[Sendables] = {
+        : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
 
     requiredExtraction match {

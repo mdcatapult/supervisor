@@ -11,6 +11,7 @@ import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.wordspec.AnyWordSpecLike
+import cats.implicits._
 
 class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -114,13 +115,12 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
 
   "A  PDF doc which has not been converted to raw text" should { "return 1 rawtext sendable" in {
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
-    val result = Document.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = Document.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("rawtext")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }}
@@ -135,7 +135,7 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now))
       val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docRaw))
       val result = Document.unapply(d)

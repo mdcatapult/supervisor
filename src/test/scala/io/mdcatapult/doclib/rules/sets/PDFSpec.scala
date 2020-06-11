@@ -11,6 +11,7 @@ import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
+import cats.implicits._
 
 class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
   """
@@ -121,13 +122,12 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
 
   "A  PDF doc which has not been processed by image intermediates" should "return 1 image intermediate sendable" in {
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
-    val result = PDF.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = PDF.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("pdf_intermediates")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -142,17 +142,16 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
         minor = 0,
         patch = 1,
         hash = "1234567890"),
-      started = LocalDateTime.now,
+      started = LocalDateTime.now.some,
       ended = Some(LocalDateTime.now)
     )
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docFlag))
-    val result = PDF.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
-    assert(result.get.forall(s =>
+    val (key, result) = PDF.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
       List("pdf_figures")
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
@@ -167,7 +166,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -178,7 +177,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       ),
       DoclibFlag(
@@ -189,7 +188,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now,
+        started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now)
       )
     )

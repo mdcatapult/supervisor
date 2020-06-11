@@ -14,7 +14,7 @@ trait NER[T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredNer()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] = {
+  def requiredNer()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
     doTask("supervisor.ner", doc)
   }
 

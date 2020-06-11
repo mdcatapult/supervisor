@@ -20,7 +20,7 @@ trait BoundingBox[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredBoundingBox()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[Sendables] =
+  def requiredBoundingBox()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] =
     if (boundingBoxMimeTypes.contains(doc.mimetype))
       doTask("supervisor.bounding_box", doc)
     else

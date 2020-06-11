@@ -11,6 +11,7 @@ import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.wordspec.AnyWordSpecLike
+import cats.implicits._
 
 class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -75,13 +76,12 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
 
   "An un-started Archive" should { "return an unarchive sendable" in {
     val d = dummy.copy(mimetype = "application/gzip")
-    val result = Archive.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.nonEmpty)
-    assert(result.get.length == 1)
-    assert(result.get.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.get.head.asInstanceOf[Queue[DoclibMsg]].name == "unarchive")
+    val (key, result) = Archive.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.head.isInstanceOf[Queue[DoclibMsg]])
+    assert(result.head.asInstanceOf[Queue[DoclibMsg]].name == "unarchive")
   }}
 
   "An started but incomplete Archive" should { "return empty sendables" in {
@@ -94,12 +94,11 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now()
+        started = LocalDateTime.now().some
     )))
-    val result = Archive.unapply(d)
-    assert(result.isDefined)
-    assert(result.get.isInstanceOf[Sendables])
-    assert(result.get.isEmpty)
+    val (key, result) = Archive.unapply(d).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.isEmpty)
   }}
 
   "An completed Archive" should { "return None" in {
@@ -112,7 +111,7 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
           minor = 0,
           patch = 1,
           hash = "1234567890"),
-        started = LocalDateTime.now(),
+        started = LocalDateTime.now().some,
         ended = Some(LocalDateTime.now())
       )))
     val result = Archive.unapply(d)

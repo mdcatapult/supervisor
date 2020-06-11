@@ -14,7 +14,7 @@ object Chemical extends NER[DoclibMsg] {
 
   def unapply(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[Sendables] = {
+  : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (isChemical.findFirstIn(doc.mimetype).nonEmpty)
       requiredNer
