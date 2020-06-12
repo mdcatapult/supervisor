@@ -26,7 +26,6 @@ lazy val root = (project in file("."))
       "-Xfatal-warnings",
     ),
     useCoursier   := false,
-    coverageEnabled   := false,
     resolvers         ++= Seq(
       "MDC Nexus Releases" at "https://nexus.mdcatapult.io/repository/maven-releases/",
       "MDC Nexus Snapshots" at "https://nexus.mdcatapult.io/repository/maven-snapshots/"),
