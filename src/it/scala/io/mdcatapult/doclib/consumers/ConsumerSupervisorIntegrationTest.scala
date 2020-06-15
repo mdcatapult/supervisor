@@ -298,7 +298,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val handler = new SupervisorHandler(
       (doc: DoclibDoc) =>
         if (doc == flagDoc)
-          Option("flag-test" -> List(sendable))
+          Option("supervisor.flag-test" -> List(sendable))
         else
           None
     )
@@ -328,7 +328,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val handler = new SupervisorHandler(
       (doc: DoclibDoc) =>
         if (doc == flagDoc)
-          Option("flag-test" -> List(sendableOne, sendableTwo))
+          Option("supervisor.flag-test" -> List(sendableOne, sendableTwo))
         else
           None
     )
@@ -368,7 +368,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val handler = new SupervisorHandler(
       (doc: DoclibDoc) =>
         if (doc == flagDoc)
-          Option("flag-test" -> sendables)
+          Option("supervisor.flag-test" -> sendables)
         else
           None
     )
@@ -411,7 +411,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val handler = new SupervisorHandler(
       (doc: DoclibDoc) =>
         if (doc == flagDoc)
-          Option("flag-test" -> sendables)
+          Option("supervisor.flag-test" -> sendables)
         else
           None
     )
