@@ -45,6 +45,7 @@ test:
     RABBITMQ_PASSWORD: guest
     RABBITMQ_VHOST: doclib
   script:
+    - sleep 120
     - curl http://guest:guest@rabbitmq:15672/api/overview
     - sbt clean coverage test it:test coverageReport
   artifacts:
