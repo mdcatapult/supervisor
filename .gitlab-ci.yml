@@ -35,17 +35,17 @@ test:
   tags:
     - wopr
   variables:
-    MONGO_HOST: localhost
+    MONGO_HOST: mongo
     MONGO_DATABASE: leadmine-test
     MONGO_COLLECTION: documents
     MONGO_USERNAME: admin
     MONGO_PASSWORD: admin
-    RABBITMQ_HOST: localhost
+    RABBITMQ_HOST: rabbitmq
     RABBITMQ_USERNAME: guest
     RABBITMQ_PASSWORD: guest
     RABBITMQ_VHOST: doclib
   script:
-    - curl http://guest:guest@localhost:15672/api/overview
+    - curl http://guest:guest@rabbitmq:15672/api/overview
     - sbt clean coverage test it:test coverageReport
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
