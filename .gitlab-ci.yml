@@ -35,12 +35,12 @@ test:
   tags:
     - wopr
   variables:
-    MONGO_HOST: mongo
+    MONGO_HOST: localhost
     MONGO_DATABASE: leadmine-test
     MONGO_COLLECTION: documents
     MONGO_USERNAME: admin
     MONGO_PASSWORD: admin
-    RABBITMQ_HOST: rabbitmq
+    RABBITMQ_HOST: localhost
     RABBITMQ_USERNAME: guest
     RABBITMQ_PASSWORD: guest
     RABBITMQ_VHOST: doclib
