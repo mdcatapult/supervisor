@@ -24,7 +24,7 @@ object Text extends NER[DoclibMsg] {
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (validDocuments.contains(doc.mimetype))
-      requiredNer
+      requiredNer()
     else
       None
   }

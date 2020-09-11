@@ -15,7 +15,7 @@ object HTML extends NER[DoclibMsg] {
   def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (isHtml.findFirstIn(doc.mimetype).nonEmpty)
-      requiredNer
+      requiredNer()
     else
       None
   }
