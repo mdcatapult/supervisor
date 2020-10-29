@@ -3,10 +3,12 @@ package io.mdcatapult.doclib.handlers
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import io.mdcatapult.doclib.ConsumerName
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibDocExtractor}
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
 import io.mdcatapult.doclib.flag.{FlagContext, MongoFlagStore}
+import io.mdcatapult.doclib.metrics.Metrics.handlerCount
 import io.mdcatapult.klein.queue.Sendable
 import io.mdcatapult.util.models.Version
 import io.mdcatapult.util.models.result.UpdatedResult
@@ -198,8 +200,12 @@ class SupervisorHandler(engine: RulesEngine)
       } yield result
 
     updated.andThen({
-      case Success(r) => logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
-      case Failure(e) => throw e
+      case Success(r) =>
+        logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
+        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success")
+      case Failure(e) =>
+        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error")
+        throw e
     })
 
     updated.map(Option.apply)
