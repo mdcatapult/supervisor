@@ -202,9 +202,9 @@ class SupervisorHandler(engine: RulesEngine)
     updated.andThen({
       case Success(r) =>
         logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
-        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success")
+        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success").inc()
       case Failure(e) =>
-        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error")
+        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error").inc()
         throw e
     })
 
