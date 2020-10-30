@@ -93,6 +93,9 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

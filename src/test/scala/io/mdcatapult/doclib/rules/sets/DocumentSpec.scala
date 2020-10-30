@@ -92,6 +92,9 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

@@ -100,6 +100,9 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
