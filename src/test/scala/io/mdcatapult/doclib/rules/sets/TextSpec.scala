@@ -86,6 +86,9 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

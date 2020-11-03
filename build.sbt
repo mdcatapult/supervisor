@@ -4,8 +4,7 @@ import Release._
 lazy val configVersion = "1.3.2"
 lazy val akkaVersion = "2.6.4"
 lazy val catsVersion = "2.1.0"
-lazy val doclibCommonVersion = "1.1.0"
-lazy val kleinUtilVersion = "1.2.0"
+lazy val doclibCommonVersion = "1.1.2"
 
 val meta = """META.INF/(blueprint|cxf).*""".r
 
@@ -52,7 +51,6 @@ lazy val root = (project in file("."))
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
       "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion,
-      "io.mdcatapult.klein" %% "util"                 % kleinUtilVersion,
       "jakarta.ws.rs" % "jakarta.ws.rs-api"           % "2.1.4"
     ).map(
       _.exclude(org = "javax.ws.rs", name = "javax.ws.rs-api")
@@ -77,6 +75,7 @@ lazy val root = (project in file("."))
       case PathList(xs @ _*) if xs.last == ".gitkeep" => MergeStrategy.discard
       case n if n.startsWith("application.conf") => MergeStrategy.concat
       case n if n.endsWith(".conf") => MergeStrategy.concat
+      case n if n.startsWith("logback.xml") => MergeStrategy.first
       case meta(_) => MergeStrategy.first
       case "META-INF/jpms.args" => MergeStrategy.discard
       case x =>

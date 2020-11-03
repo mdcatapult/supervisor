@@ -10,6 +10,7 @@ import io.mdcatapult.doclib.messages.SupervisorMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Queue
+import io.mdcatapult.util.admin.{Server => AdminServer}
 import org.mongodb.scala._
 
 /**
@@ -19,6 +20,8 @@ object ConsumerSupervisor extends AbstractConsumer(ConsumerName) {
 
   def start()(implicit as: ActorSystem, m: Materializer, mongo: Mongo): SubscriptionRef = {
     import as.dispatcher
+
+    AdminServer(config).start()
 
     implicit val collection: MongoCollection[DoclibDoc] =
       mongo.database.getCollection(config.getString("mongo.collection"))

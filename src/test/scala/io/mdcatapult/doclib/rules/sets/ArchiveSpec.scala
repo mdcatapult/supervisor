@@ -54,6 +54,9 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

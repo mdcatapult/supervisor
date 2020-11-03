@@ -35,6 +35,9 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       |analytical {
       |  supervisor: true
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin).withFallback(ConfigFactory.load())
 
   implicit val m: Materializer = Materializer(system)
