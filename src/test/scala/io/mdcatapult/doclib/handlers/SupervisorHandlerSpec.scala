@@ -8,10 +8,11 @@ import akka.testkit.TestKit
 import com.mongodb.reactivestreams.client.{MongoCollection => JMongoCollection}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
-import io.mdcatapult.doclib.util.MongoCodecs
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.codec.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Registry
+import io.mdcatapult.util.models.Version
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -144,7 +145,7 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   )
 
   "A flag which has not been queued already" can "be queued " in {
-    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"))
+    val flag = new DoclibFlag(key = "tabular.totsv", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"))
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
     val msg = SupervisorMsg(id = "1234")
@@ -152,7 +153,7 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   }
 
   "A flag which has been queued already" can "not be queued " in {
-    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
+    val flag = new DoclibFlag(key = "tabular.totsv", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
     val msg = SupervisorMsg(id = "1234")
@@ -160,7 +161,7 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   }
 
   "A flag which is already queued but has been reset" can "be queued " in {
-    val flag = new DoclibFlag(key = "tabular.totsv", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
+    val flag = new DoclibFlag(key = "tabular.totsv", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagConfig: Config = config.getConfigList("supervisor.tabular.totsv.required").asScala.head
     val flagDoc = doc.copy(doclib = List(flag))
     val msg = SupervisorMsg(id = "1234", Some(List("tabular.totsv")))

@@ -4,14 +4,16 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibDocExtractor}
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
-import io.mdcatapult.doclib.util.DoclibFlags
+import io.mdcatapult.doclib.flag.{FlagContext, MongoFlagStore}
 import io.mdcatapult.klein.queue.Sendable
+import io.mdcatapult.util.models.Version
+import io.mdcatapult.util.models.result.UpdatedResult
+import io.mdcatapult.util.time.nowUtc
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
-import org.mongodb.scala.result.UpdateResult
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
@@ -43,12 +45,14 @@ class SupervisorHandler(engine: RulesEngine)
     */
   def reset(doc: DoclibDoc, msg: SupervisorMsg)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (msg.reset.isDefined) {
-      val flags = msg.reset.getOrElse(List[String]())
-      Future.sequence(flags.map(flag => {
-        val doclibFlag = new DoclibFlags(flag)
-        doclibFlag.reset(doc)
-      })
-      ).map(_.exists(_.isDefined))
+      val keys = msg.reset.getOrElse(List[String]())
+      Future.sequence(keys.map(key => {
+        val docExtractor = new DoclibDocExtractor(key, java.time.Duration.ofSeconds(10))
+        val flags = new MongoFlagStore(Version.fromConfig(config), docExtractor, collection, nowUtc)
+        val flagContext: FlagContext = flags.findFlagContext(Some(key))
+          flagContext.reset(doc)
+        })
+      ).map(_.filter(res => res.changesMade)).map(_.nonEmpty)
     } else {
       Future.successful(true)
     }
@@ -76,12 +80,15 @@ class SupervisorHandler(engine: RulesEngine)
     * @param doc document with id to send
     * @return
     */
-  def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Future[Seq[UpdateResult]] = {
-    val flags = sendableConfigs.map { _._2.getString("flag") }
-
-    val docs = flags.map {f => new DoclibFlags(f).queue(doc) }
-
-    Future.sequence(docs).map(_.flatten)
+  def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Future[Seq[UpdatedResult]] = {
+    Future.sequence(sendableConfigs.map(sendableConfig => {
+      val key = sendableConfig._2.getString("flag")
+      val docExtractor = new DoclibDocExtractor(key, java.time.Duration.ofSeconds(10))
+      val version: Version = Version("",0,0,0,"")
+      val store = new MongoFlagStore(version, docExtractor, collection, nowUtc)
+      val context = store.findFlagContext(Some(key))
+      context.queue(doc)
+    }))
   }
 
   /**

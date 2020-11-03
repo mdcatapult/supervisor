@@ -13,13 +13,15 @@ import com.spingo.op_rabbit.Message.ConfirmResponse
 import com.spingo.op_rabbit.PlayJsonSupport._
 import com.spingo.op_rabbit.{Message, SubscriptionRef}
 import com.typesafe.config.{Config, ConfigFactory}
+import io.mdcatapult.doclib.codec.MongoCodecs
 import io.mdcatapult.doclib.handlers.SupervisorHandler
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag, FileAttrs}
-import io.mdcatapult.doclib.util.ImplicitOrdering.localDateOrdering._
-import io.mdcatapult.doclib.util.{DirectoryDelete, MongoCodecs, nowUtc}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag, FileAttrs}
+import io.mdcatapult.util.time.ImplicitOrdering.localDateOrdering._
+import io.mdcatapult.util.time.nowUtc
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.{Queue, Registry, Sendable}
+import io.mdcatapult.util.models.Version
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
@@ -42,7 +44,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 """))) with ImplicitSender
   with AnyFlatSpecLike
   with Matchers
-  with BeforeAndAfterAll with MockFactory with ScalaFutures with DirectoryDelete with Eventually with BeforeAndAfterEach {
+  with BeforeAndAfterAll with MockFactory with ScalaFutures with Eventually with BeforeAndAfterEach {
 
   implicit val config: Config = ConfigFactory.load()
 
@@ -169,7 +171,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flags = List(
       DoclibFlag(
         key = "first.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -180,7 +182,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       ),
       DoclibFlag(
         key = "first.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -191,7 +193,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       ),
       DoclibFlag(
         key = "second.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -202,7 +204,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       ),
       DoclibFlag(
         key = "third.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -235,7 +237,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flags = List(
       DoclibFlag(
         key = "first.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -246,7 +248,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       ),
       DoclibFlag(
         key = "second.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -257,7 +259,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       ),
       DoclibFlag(
         key = "third.flag",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -314,8 +316,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "Unqueued flags" should "be queued" in {
-    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
-    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
 
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
@@ -348,8 +350,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "Multiple unqueued flags" should "be queued" in {
-    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
-    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
 
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
@@ -390,8 +392,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   }
 
   "A flag which has been queued already but is reset" can "be queued" in {
-    val flag = new DoclibFlag(key = "supervisor.flag.one", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
-    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = ConsumerVersion(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
+    val flag = new DoclibFlag(key = "supervisor.flag.one", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
+    val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
 
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)

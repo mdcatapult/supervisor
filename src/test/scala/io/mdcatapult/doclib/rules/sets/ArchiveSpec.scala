@@ -7,8 +7,9 @@ import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.wordspec.AnyWordSpecLike
 import cats.implicits._
@@ -88,7 +89,7 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
     val d = dummy.copy(mimetype = "application/gzip", doclib = List(
       DoclibFlag(
         key = "unarchived",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -105,7 +106,7 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
     val d = dummy.copy(mimetype = "application/gzip", doclib = List(
       DoclibFlag(
         key = "unarchived",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,

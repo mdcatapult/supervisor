@@ -7,9 +7,10 @@ import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -149,7 +150,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     mimetype = "text/plain"
   )
 
-  val consumerVersion: ConsumerVersion = ConsumerVersion(
+  val consumerVersion: Version = Version(
     number = "0.0.1",
     major = 0,
     minor = 0,
@@ -225,7 +226,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doclibFlags = List(
       DoclibFlag(
         key = "prefetch",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -235,7 +236,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
         ended = Some(LocalDateTime.now)),
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -257,7 +258,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -268,7 +269,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -291,7 +292,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -302,7 +303,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -313,7 +314,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "bounding_boxes",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -422,7 +423,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -433,7 +434,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -444,7 +445,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "bounding_box",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -468,7 +469,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -479,7 +480,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -491,7 +492,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       ),
       DoclibFlag(
         key = "bounding_boxes",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
