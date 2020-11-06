@@ -17,7 +17,7 @@ object PDF extends ImageIntermediate[DoclibMsg] with BoundingBox[DoclibMsg] {
              (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
-    requiredImageIntermediate match {
+    requiredImageIntermediate() match {
       case Some(sendables) => Some(sendables)
       case _ =>  requiredBoundingBox()
     }

@@ -7,8 +7,9 @@ import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.wordspec.AnyWordSpecLike
 import cats.implicits._
@@ -91,6 +92,9 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
@@ -129,7 +133,7 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
     "return None" in {
       val docRaw = DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,

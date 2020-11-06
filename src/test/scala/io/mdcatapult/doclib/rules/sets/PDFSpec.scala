@@ -7,8 +7,9 @@ import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import cats.implicits._
@@ -99,6 +100,9 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |    connection-timeout = 3s
       |  }
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
@@ -136,7 +140,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
   "A  PDF doc which has been converted to image intermediates" should "return 1 bounding box sendable" in {
     val docFlag = DoclibFlag(
       key = "pdf_intermediates",
-      version = ConsumerVersion(
+      version = Version(
         number = "0.0.1",
         major = 0,
         minor = 0,
@@ -160,7 +164,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -171,7 +175,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -182,7 +186,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       ),
       DoclibFlag(
         key = "bounding_boxes",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,

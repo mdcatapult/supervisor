@@ -7,8 +7,9 @@ import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
-import io.mdcatapult.doclib.models.{ConsumerVersion, DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import cats.implicits._
@@ -34,6 +35,9 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       |analytical {
       |  supervisor: true
       |}
+      |error {
+      |  queue = false
+      |}
     """.stripMargin).withFallback(ConfigFactory.load())
 
   implicit val m: Materializer = Materializer(system)
@@ -53,7 +57,7 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
     val flags = List(
       DoclibFlag(
         key = "rawtext",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -64,7 +68,7 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       ),
       DoclibFlag(
         key = "pdf_intermediates",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,
@@ -75,7 +79,7 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       ),
       DoclibFlag(
         key = "bounding_boxes",
-        version = ConsumerVersion(
+        version = Version(
           number = "0.0.1",
           major = 0,
           minor = 0,

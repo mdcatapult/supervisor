@@ -17,7 +17,7 @@ object Chemical extends NER[DoclibMsg] {
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (isChemical.findFirstIn(doc.mimetype).nonEmpty)
-      requiredNer
+      requiredNer()
     else
       None
   }
