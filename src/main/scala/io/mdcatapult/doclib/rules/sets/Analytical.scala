@@ -3,6 +3,7 @@ package io.mdcatapult.doclib.rules.sets
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
+import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
 import io.mdcatapult.klein.queue.Registry
 
@@ -18,7 +19,8 @@ object Analytical extends SupervisorRule[DoclibMsg] {
     */
   override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] =
     if (config.getBoolean("analytical.supervisor"))
-      doTask("supervisor.analytical", doc)
+      //doTask("supervisor.analytical", doc)
+      Some("supervisor.analytical", registry.get("analytical.supervisor").toList.asInstanceOf[Sendables])
     else
       None
 }
