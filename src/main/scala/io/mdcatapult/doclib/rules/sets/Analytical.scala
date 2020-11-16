@@ -20,7 +20,7 @@ object Analytical extends SupervisorRule[DoclibMsg] {
   override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] =
     if (config.getBoolean("analytical.supervisor"))
       //doTask("supervisor.analytical", doc)
-      Some(("supervisor.analytical", List(registry.get("analytical.supervisor").asInstanceOf[Sendables]))
+      Some(("supervisor.analytical", List(registry.get("analytical.supervisor").asInstanceOf[Sendables])))
     else
       None
 }
