@@ -5,7 +5,7 @@ import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
 import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
-import io.mdcatapult.klein.queue.{Registry, Sendable}
+import io.mdcatapult.klein.queue.Registry
 
 object Analytical extends SupervisorRule[DoclibMsg] {
 
