@@ -204,6 +204,7 @@ class SupervisorHandler(engine: RulesEngine)
         logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
         handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success").inc()
       case Failure(e) =>
+        logger.error("error processing message", e)
         handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error").inc()
         throw e
     })
