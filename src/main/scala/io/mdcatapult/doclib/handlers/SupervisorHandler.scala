@@ -199,15 +199,14 @@ class SupervisorHandler(engine: RulesEngine)
         result <- sendMessages(d, msg)
       } yield result
 
-    updated.andThen({
+    updated.andThen {
       case Success(r) =>
         logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
         handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success").inc()
       case Failure(e) =>
         logger.error("error processing message", e)
         handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error").inc()
-        throw e
-    })
+    }
 
     updated.map(Option.apply)
   }
