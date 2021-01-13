@@ -23,9 +23,6 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
 
   implicit val config: Config = ConfigFactory.parseString(
     """
-      |doclib {
-      |  flags: "doclib"
-      |}
       |supervisor {
       |  archive: {
       |    required: [{
@@ -400,13 +397,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
 
-  "A  PDF doc which has image intermediates and bounding boxes" should "be queued to the analytical supervisor" in {
+  "A PDF doc which has image intermediates and bounding boxes" should "be queued to the analytical supervisor" in {
 
     implicit val config: Config = ConfigFactory.parseString(
       """
-        |doclib {
-        |  flags: "doclib"
-        |}
         |supervisor {
         |  analytical: {
         |    required: [{
