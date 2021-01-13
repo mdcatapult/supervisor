@@ -3,7 +3,6 @@ package io.mdcatapult.doclib.handlers
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import io.mdcatapult.doclib.ConsumerName
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibDocExtractor}
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
@@ -202,10 +201,10 @@ class SupervisorHandler(engine: RulesEngine)
     updated.andThen {
       case Success(r) =>
         logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
-        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "success").inc()
+        handlerCount.labels(config.getString("consumer.name"), config.getString("consumer.queue"), "success").inc()
       case Failure(e) =>
         logger.error("error processing message", e)
-        handlerCount.labels(ConsumerName, config.getString("upstream.queue"), "unknown_error").inc()
+        handlerCount.labels(config.getString("consumer.name"), config.getString("consumer.queue"), "unknown_error").inc()
     }
 
     updated.map(Option.apply)
