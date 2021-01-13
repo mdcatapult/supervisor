@@ -54,7 +54,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   private var messagesFromQueueOne = List[(String, DoclibMsg)]()
 
   // Note that we need to include a topic if we want the queue to be created
-  private val consumerName = Option(config.getString("op-rabbit.topic-exchange-name"))
+  private val consumerName = Option(config.getString("consumer.name"))
   private val flagOneQNAme = "supervisor.flag.one"
 
   private val flagOneQ = Queue[DoclibMsg](flagOneQNAme, consumerName)
@@ -145,7 +145,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
   implicit val codecs: CodecRegistry = MongoCodecs.get
   val mongo: Mongo = new Mongo()
-  implicit val collection: MongoCollection[DoclibDoc] = mongo.database.getCollection(config.getString("mongo.collection"))
+  implicit val collection: MongoCollection[DoclibDoc] = mongo.getCollection(config.getString("mongo.doclib-database"), config.getString("mongo.documents-collection"))
 
   implicit val m: Materializer = Materializer(system)
 
