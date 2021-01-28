@@ -100,4 +100,29 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
         .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
   }
 
+  "A JPEG doc which has an existing analytical supervisor flag" should "return analytical supervisor sendable" in {
+    val flags = List(
+      DoclibFlag(
+        key = "analytical.supervisor",
+        version = Version(
+          number = "0.0.1",
+          major = 0,
+          minor = 0,
+          patch = 1,
+          hash = "1234567890"),
+        started = LocalDateTime.now.some,
+        ended = Some(LocalDateTime.now)
+      )
+    )
+    val doc = dummy.copy(mimetype = "image/jpeg", source = "/dummy/path/to/dummy/file", doclib = flags)
+    val (key, result) = Analytical.unapply(doc).get
+    assert(result.isInstanceOf[Sendables])
+    assert(result.nonEmpty)
+    assert(result.length == 1)
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s =>
+      List("analytical.supervisor")
+        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+  }
+
 }
