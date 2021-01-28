@@ -65,6 +65,7 @@ trait SupervisorRule[T <: Envelope] {
   /**
     * Allow Sendable if there is no existing flag or if flag exists and has reset and
     * reset timestamp is more recent than started.
+    * Always queue to "analytical.supervisor" regardless of flag state
     *
     * @param flagConfig config
     * @param doc doc

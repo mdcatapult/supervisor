@@ -1,7 +1,8 @@
 # Document Library Supervisor
 
 The supervisor controls how documents are handled after they are ingested into the document library. 
-It decides which consumer should process a document next and publishes a message to the appropriate queue.
+It decides which consumer should process a document next and publishes a message to the appropriate queue.  
+After all the other rules have been processed it always sends the doc to the "analytical.supervisor" queue regardless of whether it has been processed previously by that consumer.
 
 ## Documentation
 
