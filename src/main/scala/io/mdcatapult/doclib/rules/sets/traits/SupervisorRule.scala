@@ -65,13 +65,16 @@ trait SupervisorRule[T <: Envelope] {
   /**
     * Allow Sendable if there is no existing flag or if flag exists and has reset and
     * reset timestamp is more recent than started.
+    * Always queue to "analytical.supervisor" regardless of flag state
     *
     * @param flagConfig config
     * @param doc doc
     * @return
     */
   def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
-    if (doc.hasFlag(flagConfig.getString("flag"))) {
+    if (flagConfig.getString("flag") == "analytical.supervisor") {
+        true
+    } else if (doc.hasFlag(flagConfig.getString("flag"))) {
       val flag: DoclibFlag = doc.getFlag(flagConfig.getString("flag")).head
       flag.reset match {
         case Some(time) => time.toEpochSecond(ZoneOffset.UTC) > flag.started.get.toEpochSecond(ZoneOffset.UTC)
