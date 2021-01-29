@@ -72,6 +72,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |  }
       |}
       |op-rabbit {
+      |  topic-exchange-name = "doclib"
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher

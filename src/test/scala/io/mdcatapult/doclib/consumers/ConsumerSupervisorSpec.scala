@@ -21,6 +21,9 @@ class ConsumerSupervisorSpec extends TestKit(ActorSystem("ConsumerSupervisorSpec
 
   implicit val config: Config = ConfigFactory.parseString(
     """
+      |op-rabbit {
+      |  topic-exchange-name = "doclib"
+      |}
       |doclib {
       |  flags: "doclib"
       |}

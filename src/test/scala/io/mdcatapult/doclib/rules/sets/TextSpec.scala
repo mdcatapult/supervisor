@@ -65,6 +65,7 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       |  }
       |}
       |op-rabbit {
+      |  topic-exchange-name = "doclib"
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher
