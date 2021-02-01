@@ -97,6 +97,9 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |error {
       |  queue = false
       |}
+      |analytical {
+      |  name: "analytical.supervisor"
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

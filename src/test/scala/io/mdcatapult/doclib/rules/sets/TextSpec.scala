@@ -90,6 +90,9 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       |error {
       |  queue = false
       |}
+      |analytical {
+      |  name: "analytical.supervisor"
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

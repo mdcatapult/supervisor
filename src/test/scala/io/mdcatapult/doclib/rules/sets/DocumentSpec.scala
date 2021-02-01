@@ -96,6 +96,9 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |error {
       |  queue = false
       |}
+      |analytical {
+      |  name: "analytical.supervisor"
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

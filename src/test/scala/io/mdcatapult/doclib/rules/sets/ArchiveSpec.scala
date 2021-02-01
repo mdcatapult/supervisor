@@ -58,6 +58,9 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
       |error {
       |  queue = false
       |}
+      |analytical {
+      |  name: "analytical.supervisor"
+      |}
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)

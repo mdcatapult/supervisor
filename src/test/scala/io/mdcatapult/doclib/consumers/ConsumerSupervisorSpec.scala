@@ -67,6 +67,9 @@ class ConsumerSupervisorSpec extends TestKit(ActorSystem("ConsumerSupervisorSpec
       |    }]
       |  }
       |}
+      |analytical {
+      |  name: "analytical.supervisor"
+      |}
     """.stripMargin)
   implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()

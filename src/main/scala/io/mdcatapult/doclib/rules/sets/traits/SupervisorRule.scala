@@ -71,8 +71,8 @@ trait SupervisorRule[T <: Envelope] {
     * @param doc doc
     * @return
     */
-  def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc): Boolean = {
-    if (flagConfig.getString("flag") == "analytical.supervisor") {
+  def sendableAllowed(flagConfig: Config)(implicit doc: DoclibDoc, config: Config): Boolean = {
+    if (flagConfig.getString("flag") == config.getString("analytical.name")) {
         true
     } else if (doc.hasFlag(flagConfig.getString("flag"))) {
       val flag: DoclibFlag = doc.getFlag(flagConfig.getString("flag")).head
