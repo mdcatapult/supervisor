@@ -79,6 +79,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |  }
       |}
       |op-rabbit {
+      |  topic-exchange-name = "doclib"
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher
@@ -102,6 +103,9 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |}
       |error {
       |  queue = false
+      |}
+      |analytical {
+      |  name: "analytical.supervisor"
       |}
     """.stripMargin)
 

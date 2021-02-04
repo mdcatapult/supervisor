@@ -33,6 +33,7 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
       |  }
       |}
       |op-rabbit {
+      |  topic-exchange-name = "doclib"
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher
@@ -56,6 +57,9 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
       |}
       |error {
       |  queue = false
+      |}
+      |analytical {
+      |  name: "analytical.supervisor"
       |}
     """.stripMargin)
 

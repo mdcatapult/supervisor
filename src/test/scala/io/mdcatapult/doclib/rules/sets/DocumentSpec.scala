@@ -71,6 +71,7 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |  }
       |}
       |op-rabbit {
+      |  topic-exchange-name = "doclib"
       |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
       |  default-channel-dispatcher {
       |    type = Dispatcher
@@ -94,6 +95,9 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |}
       |error {
       |  queue = false
+      |}
+      |analytical {
+      |  name: "analytical.supervisor"
       |}
     """.stripMargin)
 
