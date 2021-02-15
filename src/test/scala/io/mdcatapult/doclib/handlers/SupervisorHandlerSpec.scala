@@ -80,7 +80,9 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
       |    username: "doclib"
       |    password: "doclib"
       |    database: "admin"
-      |    hosts: ["localhost"]
+      |    host: "localhost"
+      |    port: 27017
+      |    srv: false
       |  }
       |}
       |supervisor {
