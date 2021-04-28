@@ -1,11 +1,11 @@
 package io.mdcatapult.doclib.rules.sets
 
-import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
+import io.mdcatapult.doclib.consumers.{Rule, Stage, Workflow}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.klein.queue.{Queue, Registry}
@@ -13,7 +13,8 @@ import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import cats.implicits._
+
+import java.time.LocalDateTime
 
 class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -104,6 +105,18 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
 
   implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
+  private val mimeType = "textMimeType"
+  val exampleWorkflow = Workflow(Array(
+    Stage(
+      name = "text",
+      value = Array(
+        Rule(
+          name = "mimetypes",
+          value = Array(mimeType)
+        )
+      )
+    ),
+  ))
 
   val dummy: DoclibDoc = DoclibDoc(
     _id = new ObjectId(),
@@ -125,7 +138,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
 
   "A Tabular doc with an unmatched mimetype" should { "return None " in {
     val d = dummy.copy(mimetype = "dummy/mimetype")
-    val result = Tabular.unapply(d)
+    val result = Tabular.resolve(d)
     assert(result.isEmpty)
   }}
 
@@ -153,7 +166,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       )
     )
 
-    Tabular.unapply(d) should be (None)
+    Tabular.resolve(d) should be (None)
   }}
 
   "An extracted Tabular doc with partially completed analysis" should { "not require analysis" in {
@@ -191,6 +204,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
   }}
 
   "A complete TSV doc" should { "return None" in {
+    implicit val workflow = exampleWorkflow
     val d = dummy.copy(
       mimetype = "text/tab-separated-values",
       source = "/dummy/path/to/dummy/file",
@@ -206,7 +220,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())),
       ))
-    val result = Archive.unapply(d)
+    val result = Archive.resolve(d)
     assert(result.isEmpty)
   }}
 
@@ -224,7 +238,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())),
       ))
-    val (key, result) = Tabular.unapply(d).get
+    val (key, result) = Tabular.resolve(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -243,13 +257,13 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           started = LocalDateTime.now().some,
           ended = Some(LocalDateTime.now())
         )))
-    val result = Tabular.unapply(d)
+    val result = Tabular.resolve(d)
     assert(result.isEmpty)
   }}
 
   "A tabular doc which has not been NER'd " should { "return 3 NER sendables" in {
     val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
-    val (key, result) = Tabular.unapply(d).get
+    val (key, result) = Tabular.resolve(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 3)
@@ -266,7 +280,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       DoclibFlag(key = "ner.chemicalidentifiers",  version = consumerVersion, started = LocalDateTime.now.some, ended = Some(LocalDateTime.now))
     )
     val d = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file", doclib = docNER)
-    val (key, result) = Tabular.unapply(d).get
+    val (key, result) = Tabular.resolve(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -316,7 +330,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
           )
         )
       )
-      val (key, result) = Tabular.unapply(doc).get
+      val (key, result) = Tabular.resolve(doc).get
       assert(result.length == 2)
       assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
       assert(result.forall(s =>

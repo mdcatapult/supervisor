@@ -90,7 +90,7 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       )
     )
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val (key, result) = Analytical.unapply(doc).get
+    val (key, result) = Analytical.resolve(doc).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -115,7 +115,7 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
       )
     )
     val doc = dummy.copy(mimetype = "image/jpeg", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val (key, result) = Analytical.unapply(doc).get
+    val (key, result) = Analytical.resolve(doc).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)

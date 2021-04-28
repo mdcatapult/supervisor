@@ -1,14 +1,14 @@
 package io.mdcatapult.doclib.handlers
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import io.mdcatapult.doclib.consumers.Workflow
+import io.mdcatapult.doclib.flag.{FlagContext, MongoFlagStore}
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
+import io.mdcatapult.doclib.metrics.Metrics.handlerCount
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibDocExtractor}
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
-import io.mdcatapult.doclib.flag.{FlagContext, MongoFlagStore}
-import io.mdcatapult.doclib.metrics.Metrics.handlerCount
-import io.mdcatapult.klein.queue.Sendable
+import io.mdcatapult.klein.queue.{Registry, Sendable}
 import io.mdcatapult.util.models.Version
 import io.mdcatapult.util.models.result.UpdatedResult
 import io.mdcatapult.util.time.nowUtc
@@ -25,10 +25,12 @@ object SupervisorHandler {
   /**
     * SupervisorHandler with an appropriate rule engine based on the supplied config running under the given actor system.
     */
-  def apply()(implicit as: ActorSystem,
+  def apply()(implicit
               ec: ExecutionContext,
               config: Config,
-              collection: MongoCollection[DoclibDoc]): SupervisorHandler =
+              collection: MongoCollection[DoclibDoc],
+              workflow: Workflow,
+              registry: Registry[DoclibMsg]): SupervisorHandler =
     new SupervisorHandler(new Engine())
 }
 
@@ -101,7 +103,6 @@ class SupervisorHandler(engine: RulesEngine)
     * @return
     */
   def sendableConfig(doc: DoclibDoc, msg: SupervisorMsg): Seq[(Sendable[DoclibMsg],Config)] = {
-
     engine.resolve(doc) match {
       case Some(sendableKey -> sendables) =>
 
@@ -116,7 +117,6 @@ class SupervisorHandler(engine: RulesEngine)
         val scs = sendables.zip(configs)
 
         scs.flatMap(x => x._2.map(x._1 -> _))
-
       case None => Nil
     }
   }

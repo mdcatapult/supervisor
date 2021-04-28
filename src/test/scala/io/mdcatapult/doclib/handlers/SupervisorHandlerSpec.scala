@@ -1,7 +1,6 @@
 package io.mdcatapult.doclib.handlers
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.TestKit
@@ -10,6 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.codec.MongoCodecs
+import io.mdcatapult.doclib.consumers.Workflow
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Registry
 import io.mdcatapult.util.models.Version
@@ -133,7 +133,8 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
 
   val wrappedCollection: JMongoCollection[DoclibDoc] = stub[JMongoCollection[DoclibDoc]]
   implicit val collection: MongoCollection[DoclibDoc] = MongoCollection[DoclibDoc](wrappedCollection)
-
+  
+  implicit val workflow: Workflow = new Workflow(Array())
   private val handler = SupervisorHandler()
 
   implicit val doc: DoclibDoc = DoclibDoc(

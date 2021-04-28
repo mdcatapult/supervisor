@@ -45,7 +45,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   with AnyFlatSpecLike
   with Matchers
   with BeforeAndAfterAll with MockFactory with ScalaFutures with Eventually with BeforeAndAfterEach {
-
+  implicit val workflow: Workflow = new Workflow(Array())
   implicit val config: Config = ConfigFactory.load()
 
   implicit val timeout: Timeout = Timeout(5 seconds)
@@ -217,7 +217,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
     val msg = SupervisorMsg("1234", Some(List("first.flag", "second.flag")))
     val result = Await.result(collection.insertOne(doc).toFutureOption(), 5.seconds)
-    assert(result.exists(_.wasAcknowledged()))    // reset first and second flags which should also dedup first to the most current one
+    assert(result.exists(_.wasAcknowledged())) // reset first and second flags which should also dedup first to the most current one
     Await.result(handler.reset(doc, msg), 5.seconds)
     val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
     val flag = updatedDoc.head.getFlag("first.flag").head
@@ -281,12 +281,12 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val updatedDoc = Await.result(collection.find(Mequal("_id", doc._id)).toFuture(), 5.seconds)
 
     val flag = updatedDoc.head.getFlag("first.flag").head
-    flag.reset should be (None)
+    flag.reset should be(None)
     assert(flag.started.get.truncatedTo(MILLIS) == timeNow)
     assert(flag.ended.get.truncatedTo(MILLIS) == timeNow)
 
     val secondFlag = updatedDoc.head.getFlag("second.flag").head
-    secondFlag.reset should be (None)
+    secondFlag.reset should be(None)
   }
 
   "A flag which is not queued" can "be queued" in {
@@ -304,14 +304,14 @@ akka.loggers = ["akka.testkit.TestEventListener"]
         else
           None
     )
-
+    
     Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
 
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.doclib.length == 1)
     eventually {
-      messagesFromQueueOne should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueOne should contain("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 
@@ -328,7 +328,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val msg = new SupervisorMsg(id = "1234")
 
     val handler = new SupervisorHandler(
-      (doc: DoclibDoc) =>
+      engine = (doc: DoclibDoc) =>
         if (doc == flagDoc)
           Option("supervisor.flag-test" -> List(sendableOne, sendableTwo))
         else
@@ -345,7 +345,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
-      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 
@@ -368,7 +368,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val msg = new SupervisorMsg(id = "1234")
 
     val handler = new SupervisorHandler(
-      (doc: DoclibDoc) =>
+      engine = (doc: DoclibDoc) =>
         if (doc == flagDoc)
           Option("supervisor.flag-test" -> sendables)
         else
@@ -386,8 +386,8 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
     eventually {
       messagesFromQueueOne should not contain ("" -> DoclibMsg(flagDoc._id.toHexString))
-      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
-      messagesFromQueueThree should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueThree should contain("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 
@@ -411,7 +411,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val msg = new SupervisorMsg(id = "1234", reset = Some(List("supervisor.flag.one")))
 
     val handler = new SupervisorHandler(
-      (doc: DoclibDoc) =>
+      engine = (doc: DoclibDoc) =>
         if (doc == flagDoc)
           Option("supervisor.flag-test" -> sendables)
         else
@@ -428,9 +428,9 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     assert(docResult.head.doclib.length == 3)
 
     eventually {
-      messagesFromQueueOne should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
-      messagesFromQueueTwo should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
-      messagesFromQueueThree should contain ("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueOne should contain("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueTwo should contain("" -> DoclibMsg(flagDoc._id.toHexString))
+      messagesFromQueueThree should contain("" -> DoclibMsg(flagDoc._id.toHexString))
     }
   }
 

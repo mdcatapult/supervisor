@@ -8,13 +8,13 @@ import io.mdcatapult.klein.queue.Registry
 
 object Document extends RawText[DoclibMsg] {
 
-  def unapply(doc: DoclibDoc)
+  def resolve(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     requiredRawTextConversion() match {
       case Some(sendables) => Some(sendables)
-      case _ =>  None
+      case _ => None
     }
   }
 }

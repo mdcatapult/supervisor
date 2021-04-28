@@ -19,8 +19,9 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
 
   /**
     * Do NER should before analysis
-    * @param doc DoclibDoc
-    * @param config Config
+    *
+    * @param doc      DoclibDoc
+    * @param config   Config
     * @param registry Registry
     * @return
     */
@@ -40,20 +41,17 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
   /**
     * Queue to tsv > NER > analysis
     *
-    * @param doc Document to be matched
-    * @param config Config
+    * @param doc      Document to be matched
+    * @param config   Config
     * @param registry Registry
     * @return Option[Sendables] List of Queue to process this doc
     */
-  def unapply(doc: DoclibDoc)
-  (implicit config: Config, registry: Registry[DoclibMsg])
-        : Option[(String, Sendables)] = {
+  def resolve(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
 
     requiredExtraction() match {
       case Some(sendables) => Some(sendables)
-      case _  =>  nerOrAnalysis(doc)
+      case _ => nerOrAnalysis(doc)
     }
   }
-
 }

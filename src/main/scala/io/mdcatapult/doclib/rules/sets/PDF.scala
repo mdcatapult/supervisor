@@ -13,14 +13,13 @@ import io.mdcatapult.klein.queue.Registry
   */
 object PDF extends ImageIntermediate[DoclibMsg] with BoundingBox[DoclibMsg] {
 
-  def unapply(doc: DoclibDoc)
+  def resolve(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     requiredImageIntermediate() match {
       case Some(sendables) => Some(sendables)
-      case _ =>  requiredBoundingBox()
+      case _ => requiredBoundingBox()
     }
   }
-
 }

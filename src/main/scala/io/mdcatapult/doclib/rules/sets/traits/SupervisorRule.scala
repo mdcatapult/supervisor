@@ -12,15 +12,6 @@ import scala.jdk.CollectionConverters._
 trait SupervisorRule[T <: Envelope] {
 
   /**
-    * Abstract unapply
-    * @param doc Document to be matched
-    * @param config Config
-    * @param registry Registry
-    * @return
-    */
-  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[(String, Sendables)]
-
-  /**
     * tests if all flags for key have been completed
     * @param key String flag to find
     * @param doc Document to check

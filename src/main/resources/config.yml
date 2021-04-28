@@ -1,0 +1,106 @@
+---
+stages:
+  - name: text
+    value:
+      - name: mimetypes
+        value: 
+         - message/news
+         - message/rfc822
+         - text/aln
+         - text/calendar
+         - text/css
+         - text/fasta
+         - text/hkl
+         - text/html
+         - text/markdown
+         - text/matlab
+         - text/nex
+         - text/plain
+         - text/r
+         - text/rtf
+         - text/texmacs
+         - text/troff
+         - text/vcard
+         - text/x-asm
+         - text/x-awk
+         - text/x-bibtex
+         - text/x-c
+         - text/x-c++
+         - text/x-c++hdr
+         - text/x-c++src
+         - text/x-chdr
+         - text/x-csh
+         - text/x-csrc
+         - text/x-diff
+         - text/x-dsrc
+         - text/x-fortran
+         - text/x-gawk
+         - text/x-java
+         - text/x-lisp
+         - text/x-literate-haskell
+         - text/x-m4
+         - text/x-makefile
+         - text/x-msdos-batch
+         - text/x-objective-c
+         - text/x-pascal
+         - text/x-perl
+         - text/x-php
+         - text/x-po
+         - text/x-python
+         - text/x-ruby
+         - text/x-scala
+         - text/x-sfv
+         - text/x-sh
+         - text/x-shellscript
+         - text/x-tcl
+         - text/x-tex
+  - name: xml
+    value:
+      - name: mimetypes
+        value: 
+          - application/rdf+xml
+          - application/smil+xml
+          - application/vnd.google-earth.kml+xml
+          - application/xml
+          - application/xslt+xml
+          - image/svg+xml
+          - model/x3d+xml
+          - text/xml
+          - xml/dtd
+  - name: archiver
+    value:
+      - name: mimetypes
+        value:
+          - application/gzip
+          - application/vnd.ms-cab-compressed
+          - application/x-7z-compressed
+          - application/x-ace-compressed
+          - application/x-alz-compressed
+          - application/x-apple-diskimage
+          - application/x-arj
+          - application/x-astrotite-afa
+          - application/x-b1
+          - application/x-bzip2
+          - application/x-cfs-compressed
+          - application/x-compress
+          - application/x-cpio
+          - application/x-dar
+          - application/x-dgc-compressed
+          - application/x-gca-compressed
+          - application/x-gtar
+          - application/x-lzh
+          - application/x-lzip
+          - application/x-lzma
+          - application/x-lzop
+          - application/x-lzx
+          - application/x-par2
+          - application/x-rar-compressed
+          - application/x-sbx
+          - application/x-shar
+          - application/x-snappy-framed
+          - application/x-stuffit
+          - application/x-stuffitx
+          - application/x-tar
+          - application/x-xz
+          - application/x-zoo
+          - application/zip
