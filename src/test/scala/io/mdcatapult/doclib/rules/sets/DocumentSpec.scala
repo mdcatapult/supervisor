@@ -117,13 +117,13 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
 
   "A Tabular doc with an unmatched mimetype" should { "return None " in {
     val d = dummy.copy(mimetype = "dummy/mimetype")
-    val result = Document.unapply(d)
+    val result = Document.resolve(d)
     assert(result.isEmpty)
   }}
 
   "A  PDF doc which has not been converted to raw text" should { "return 1 rawtext sendable" in {
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
-    val (key, result) = Document.unapply(d).get
+    val (key, result) = Document.resolve(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -146,7 +146,7 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
         started = LocalDateTime.now.some,
         ended = Some(LocalDateTime.now))
       val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docRaw))
-      val result = Document.unapply(d)
+      val result = Document.resolve(d)
       assert(result.isEmpty)
     }
   }

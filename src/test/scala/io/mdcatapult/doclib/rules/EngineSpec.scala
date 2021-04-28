@@ -1,20 +1,20 @@
 package io.mdcatapult.doclib.rules
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.doclib.rules.sets._
 import io.mdcatapult.klein.queue.{Queue, Registry}
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import cats.implicits._
+import io.mdcatapult.doclib.consumers.{Rule, Stage, Workflow}
+import io.mdcatapult.doclib.rules.sets.Tabular
 
 class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseString(
   """
@@ -132,10 +132,64 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     "application/x-msaccess"
   )
 
+  val exampleXmlMimeTypes = List(
+    "xmlMimeType",
+  )
+
+  val exampleArchiverMimeTypes = List(
+    "archiverMimeType"
+  )
+
+  val exampleTextMimeTypes = List(
+    "textMimeType", "tabularMimeType"
+  )
+
+  val examplePdfMimeTypes = List(
+    "PDF"
+  )
+
+  val exampleWorkflow = Workflow(Array(
+    Stage(
+      name = "xml",
+      value = Array(
+        Rule(
+          name = "mimetypes",
+          value = exampleXmlMimeTypes.toArray,
+        )
+      )
+    ),
+    Stage(
+      name = "archiver",
+      value = Array(
+        Rule(
+          name = "mimetypes",
+          value = exampleArchiverMimeTypes.toArray,
+        )
+      )
+    ),
+    Stage(
+      name = "text",
+      value = Array(
+        Rule(
+          name = "mimetypes",
+          value = exampleTextMimeTypes.toArray,
+        )
+      )
+    ),
+    Stage(
+      name = "PDF",
+      value = Array(
+        Rule(
+          name = "mimetypes",
+          value = examplePdfMimeTypes.toArray,
+        )
+      )
+    ),
+  ))
+
   implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
-  val engine: RulesEngine = new Engine()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -154,16 +208,43 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     patch = 1,
     hash = "1234567890")
 
+  "An empty workflow" should "return None" in {
+    implicit val workflow: Workflow = new Workflow(Array())
+    val engine = new Engine()
+    val doc = dummy.copy(mimetype = "dummy/mimetype")
+    val result = engine.resolve(doc)
+    assert(result.isEmpty)
+  }
+
+  "A workflow with incorrect stages" should "return None" in {
+    implicit val workflow = new Workflow(Array(
+      Stage(
+        name = "nonsense",
+        value = Array()
+      )
+    ))
+
+    val engine = new Engine()
+
+    val doc = dummy.copy(mimetype = "dummy/mimetype")
+    val result = engine.resolve(doc)
+    assert(result.isEmpty)
+  }
 
   "An unknown mimetype" should "return None" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val doc = dummy.copy(mimetype = "dummy/mimetype")
     val result = engine.resolve(doc)
     assert(result.isEmpty)
   }
 
   "A non tabular spreadsheet doc" should "return a tsv extract" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     Tabular.extractMimetypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
+
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 1)
       assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
@@ -174,7 +255,9 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A tabular doc" should "return NER sendables" in {
-    val doc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
+    val doc = dummy.copy(mimetype = exampleTextMimeTypes(1), source = "/dummy/path/to/dummy/file")
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 3)
     assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
@@ -184,7 +267,9 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A text doc" should "return NER sendables" in {
-    Text.validDocuments.foreach(mimetype => {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
+    exampleTextMimeTypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
@@ -196,7 +281,9 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "An archive doc" should "return archive sendable" in {
-    Archive.validMimetypes.foreach(mimetype => {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
+    exampleArchiverMimeTypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 1)
@@ -208,6 +295,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A document doc" should "return rawtext sendable" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     rawTextConversions.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
@@ -220,6 +309,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A PDF document with completed raw text" should "return image intermediates sendable" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val doclibFlags = List(
       DoclibFlag(
         key = "prefetch",
@@ -252,6 +343,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A PDF which has been raw text and pdf intermediates processed" should "return bounding boxes sendables" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val flags = List(
       DoclibFlag(
         key = "rawtext",
@@ -286,6 +379,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A PDF which has been raw text, pdf intermediates and bounding box processed" should "return None" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val flags = List(
       DoclibFlag(
         key = "rawtext",
@@ -328,6 +423,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
 
 
   "An HTML doc" should "return ner sendables" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     // TODO are there more mimeteypes?
     List("text/html").foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
@@ -341,6 +438,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "An image doc" should "return None" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     // TODO not a very exhaustive list of image mimetypes
     // Image returns None anyway
     // Note that image/svg+xml is handled by the XML rule
@@ -352,6 +451,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A chemical doc" should "return ner sendables" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     // TODO not a very exhaustive list of chemical mimetypes. See https://en.wikipedia.org/wiki/Chemical_file_format
     List("chemical/x-inchi ", "chemical/x-chem3d").foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
@@ -365,6 +466,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A video doc" should "return None" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     // TODO not a very exhaustive list of video mimetypes
     // Video returns None anyway
     List("video/mpeg", "video/mp2t").foreach(mimetype => {
@@ -375,6 +478,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "An audio doc" should "return None" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     // TODO not a very exhaustive list of audio mimetypes
     // Audio returns None anyway
     List("audio/wav", "audio/aac").foreach(mimetype => {
@@ -385,7 +490,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "An XML doc" should "return ner sendables" in {
-    XML.validDocuments.foreach(mimetype => {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
+
+    exampleXmlMimeTypes.foreach(mimetype => {
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
@@ -449,8 +557,9 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
         ended = Some(LocalDateTime.now)
       )
     )
+    implicit val workflow = exampleWorkflow
     val engine: RulesEngine = new Engine()
-    val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
+    val doc = dummy.copy(mimetype = examplePdfMimeTypes.head, source = "/dummy/path/to/dummy/file", doclib = flags)
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
     assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
@@ -460,6 +569,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A PDF which has been raw text, pdf intermediates and bounding box processed with intermediates reset" should "return a pdf_intermediates sendable" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val flags = List(
       DoclibFlag(
         key = "rawtext",
@@ -507,6 +618,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   }
 
   "A Tabular doc with completed ner with 2 reset" should "return 2 NER sendables" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val doc: DoclibDoc = dummy.copy(
       mimetype = "text/tab-separated-values",
       source = "/dummy/path/to/dummy/file",
@@ -548,6 +661,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
 
 
   "A Tabular doc with completed ner with one reset and a reset but unfinished analysis" should "return 1 analysis sendable" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val doc: DoclibDoc = dummy.copy(
       mimetype = "text/tab-separated-values",
       source = "/dummy/path/to/dummy/file",
@@ -588,6 +703,8 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
 
 
   "A Tabular doc with completed ner with one reset and analysis reset before started time" should "return no sendables" in {
+    implicit val workflow = exampleWorkflow
+    val engine = new Engine()
     val doc: DoclibDoc = dummy.copy(
       mimetype = "text/tab-separated-values",
       source = "/dummy/path/to/dummy/file",

@@ -1,7 +1,7 @@
 package io.mdcatapult.doclib.rules
 
-import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.consumers.Workflow
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets._
@@ -11,8 +11,9 @@ trait RulesEngine {
   def resolve(doc: DoclibDoc): Option[(String, Sendables)]
 }
 
+
 object Engine {
-  def apply()(implicit config: Config, sys: ActorSystem) =  new Engine
+  def apply()(implicit config: Config, workflow: Workflow, registry: Registry[DoclibMsg]) = new Engine
 }
 
 /**
@@ -21,23 +22,26 @@ object Engine {
   * This effect cascades, if a document qualifies for multiple criteria then it will process each one in
   * sequence over time.
   */
-class Engine(implicit config: Config, sys: ActorSystem) extends RulesEngine {
+class Engine()(implicit config: Config, workflow: Workflow, registry: Registry[DoclibMsg]) extends RulesEngine {
 
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
+  def resolve(doc: DoclibDoc): Option[(String, Sendables)] = {
 
-  def resolve(doc: DoclibDoc): Option[(String, Sendables)] = doc match {
-    case Archive(key, qs) => Some((key, qs.distinct))
-    case Tabular(key, qs) => Some((key, qs.distinct))
-    case HTML(key, qs) => Some((key, qs.distinct))
-    case XML(key, qs) => Some((key, qs.distinct))
-    case Text(key, qs) => Some((key, qs.distinct))
-    case Document(key, qs) => Some((key, qs.distinct))
-    case PDF(key, qs) => Some((key, qs.distinct))
-    case Chemical(key, qs) => Some((key, qs.distinct))
-    case Image(key, qs) => Some((key, qs.distinct))
-    case Audio(key, qs) => Some((key, qs.distinct))
-    case Video(key, qs) => Some((key, qs.distinct))
-    case Analytical(key, qs) => Some((key, qs.distinct))
-    case _ => None
+    val stringAndSendablesOpt =
+      Archive.resolve(doc) orElse
+      Tabular.resolve(doc) orElse
+      HTML.resolve(doc) orElse
+      XML.resolve(doc) orElse
+      Text.resolve(doc) orElse
+      Document.resolve(doc) orElse
+      PDF.resolve(doc) orElse
+      Chemical.resolve(doc) orElse
+      Image.resolve(doc) orElse
+      Audio.resolve(doc) orElse
+      Video.resolve(doc) orElse
+      Analytical.resolve(doc)
+
+    for {
+      result <- stringAndSendablesOpt
+    } yield (result._1, result._2.distinct)
   }
 }
