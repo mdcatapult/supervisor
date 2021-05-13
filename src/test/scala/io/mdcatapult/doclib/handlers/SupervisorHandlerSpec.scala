@@ -1,17 +1,17 @@
 package io.mdcatapult.doclib.handlers
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.mongodb.reactivestreams.client.{MongoCollection => JMongoCollection}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
+import io.mdcatapult.doclib.models.{AppConfig, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.codec.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.Registry
+import io.mdcatapult.util.concurrency.SemaphoreLimitedExecution
 import io.mdcatapult.util.models.Version
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
@@ -125,6 +125,13 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
       |    }]
       |  }
       |}
+      |  consumer {
+      |   config-yaml: "src/main/resources/config.yml"
+      |   name: "supervisor"
+      |   concurrency: 1
+      |   queue: "supervisor"
+      |   exchange: "doclib"
+      |}
     """.stripMargin)
   implicit val m: Materializer = Materializer(system)
   implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
@@ -134,7 +141,18 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
   val wrappedCollection: JMongoCollection[DoclibDoc] = stub[JMongoCollection[DoclibDoc]]
   implicit val collection: MongoCollection[DoclibDoc] = MongoCollection[DoclibDoc](wrappedCollection)
 
-  private val handler = SupervisorHandler()
+  val readLimiter = SemaphoreLimitedExecution.create(5)
+  val writeLimiter = SemaphoreLimitedExecution.create(5)
+
+  implicit val appConfig: AppConfig =
+    AppConfig(
+      config.getString("consumer.name"),
+      config.getInt("consumer.concurrency"),
+      config.getString("consumer.queue"),
+      Option(config.getString("consumer.exchange"))
+    )
+
+  private val handler = SupervisorHandler(readLimiter, writeLimiter)
 
   implicit val doc: DoclibDoc = DoclibDoc(
     _id = new ObjectId(),

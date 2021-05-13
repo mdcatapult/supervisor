@@ -3,12 +3,13 @@ package io.mdcatapult.doclib.handlers
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import io.mdcatapult.doclib.consumer.{AbstractHandler, HandlerResult}
+import io.mdcatapult.doclib.flag.MongoFlagContext
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
-import io.mdcatapult.doclib.models.{DoclibDoc, DoclibDocExtractor}
+import io.mdcatapult.doclib.models.{AppConfig, DoclibDoc}
 import io.mdcatapult.doclib.rules.{Engine, RulesEngine}
-import io.mdcatapult.doclib.flag.{FlagContext, MongoFlagStore}
-import io.mdcatapult.doclib.metrics.Metrics.handlerCount
 import io.mdcatapult.klein.queue.Sendable
+import io.mdcatapult.util.concurrency.LimitedExecution
 import io.mdcatapult.util.models.Version
 import io.mdcatapult.util.models.result.UpdatedResult
 import io.mdcatapult.util.time.nowUtc
@@ -25,35 +26,79 @@ object SupervisorHandler {
   /**
     * SupervisorHandler with an appropriate rule engine based on the supplied config running under the given actor system.
     */
-  def apply()(implicit as: ActorSystem,
-              ec: ExecutionContext,
-              config: Config,
-              collection: MongoCollection[DoclibDoc]): SupervisorHandler =
-    new SupervisorHandler(new Engine())
+  def apply(readLimiter: LimitedExecution,
+            writeLimiter: LimitedExecution)
+           (implicit
+            as: ActorSystem,
+            ec: ExecutionContext,
+            config: Config,
+            collection: MongoCollection[DoclibDoc],
+            appConfig: AppConfig): SupervisorHandler =
+    new SupervisorHandler(new Engine(), readLimiter, writeLimiter)
 }
 
-class SupervisorHandler(engine: RulesEngine)
+case class SupervisorHandlerResult(doclibDoc: DoclibDoc,
+                                   doclibMessagesWithConfig: Seq[(Sendable[DoclibMsg], Config)],
+                                   publishResult: Boolean) extends HandlerResult
+
+class SupervisorHandler(engine: RulesEngine,
+                        val readLimiter: LimitedExecution,
+                        val writeLimiter: LimitedExecution)
                        (implicit
                         ec: ExecutionContext,
+                        appConfig: AppConfig,
                         config: Config,
-                        collection: MongoCollection[DoclibDoc]) extends LazyLogging {
+                        collection: MongoCollection[DoclibDoc]) extends AbstractHandler[SupervisorMsg] with LazyLogging {
 
   class AlreadyQueuedException(docId: ObjectId, flag: String) extends Exception(s"Flag $flag for Document $docId has already been queued")
 
   /**
+    * handler for messages from the queue
+    *
+    * @param message incoming message from Rabbit
+    * @return
+    */
+  def handle(message: SupervisorMsg): Future[Option[SupervisorHandlerResult]] = {
+
+    val flagContext = new MongoFlagContext(appConfig.name, Version.fromConfig(config), collection, nowUtc)
+
+    val updated: Future[Option[SupervisorHandlerResult]] =
+      for {
+        doc <- readResetDoc(message) if doc.nonEmpty
+        d = doc.head
+        result <- sendMessages(d, message)
+      } yield Option(SupervisorHandlerResult(d, result._1, result._2))
+
+    postHandleProcess(
+      message.id,
+      updated,
+      flagContext,
+      collection
+    ).andThen {
+      case Success(Some(result)) =>
+        logger.info(s"Sent ok=${result.publishResult} messages=${result.doclibMessagesWithConfig}")
+    }
+  }
+
+  /**
     * forcibly remove status for an exchange/queue to allow reprocessing
+    *
     * @return
     */
   def reset(doc: DoclibDoc, msg: SupervisorMsg)(implicit ec: ExecutionContext): Future[Boolean] = {
     if (msg.reset.isDefined) {
       val keys = msg.reset.getOrElse(List[String]())
-      Future.sequence(keys.map(key => {
-        val docExtractor = new DoclibDocExtractor(key, java.time.Duration.ofSeconds(10))
-        val flags = new MongoFlagStore(Version.fromConfig(config), docExtractor, collection, nowUtc)
-        val flagContext: FlagContext = flags.findFlagContext(Some(key))
-          flagContext.reset(doc)
+
+      val resetDocumentsFuture = Future.sequence {
+        keys.map(key => {
+          val flags = new MongoFlagContext(key, Version.fromConfig(config), collection, nowUtc)
+          flags.reset(doc)
         })
-      ).map(_.filter(res => res.changesMade)).map(_.nonEmpty)
+      }
+
+      resetDocumentsFuture.collect { updatedResult =>
+        updatedResult.exists(_.changesMade)
+      }
     } else {
       Future.successful(true)
     }
@@ -65,7 +110,7 @@ class SupervisorHandler(engine: RulesEngine)
     * @param doc document with id to send
     * @return
     */
-  def publish(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Boolean = {
+  def publish(sendableConfigs: Seq[(Sendable[DoclibMsg], Config)], doc: DoclibDoc): Boolean = {
     Try(
       sendableConfigs.foreach { s => s._1.send(DoclibMsg(doc._id.toHexString)) }
     ) match {
@@ -78,17 +123,16 @@ class SupervisorHandler(engine: RulesEngine)
     * Set the flag queued status in the doc to true for each sendable
     *
     * @param sendableConfigs sendable messages paired with their config
-    * @param doc document with id to send
+    * @param doc             document with id to send
     * @return
     */
-  def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg],Config)], doc: DoclibDoc): Future[Seq[UpdatedResult]] = {
+  def updateQueueStatus(sendableConfigs: Seq[(Sendable[DoclibMsg], Config)], doc: DoclibDoc): Future[Seq[UpdatedResult]] = {
     Future.sequence(sendableConfigs.map(sendableConfig => {
       val key = sendableConfig._2.getString("flag")
-      val docExtractor = new DoclibDocExtractor(key, java.time.Duration.ofSeconds(10))
-      val version: Version = Version("",0,0,0,"")
-      val store = new MongoFlagStore(version, docExtractor, collection, nowUtc)
-      val context = store.findFlagContext(Some(key))
-      context.queue(doc)
+      val version: Version = Version("", 0, 0, 0, "")
+
+      val flags = new MongoFlagContext(key, version, collection, nowUtc)
+      flags.queue(doc)
     }))
   }
 
@@ -100,8 +144,7 @@ class SupervisorHandler(engine: RulesEngine)
     * @param msg incoming message from Rabbit
     * @return
     */
-  def sendableConfig(doc: DoclibDoc, msg: SupervisorMsg): Seq[(Sendable[DoclibMsg],Config)] = {
-
+  def sendableConfig(doc: DoclibDoc, msg: SupervisorMsg): Seq[(Sendable[DoclibMsg], Config)] = {
     engine.resolve(doc) match {
       case Some(sendableKey -> sendables) =>
 
@@ -116,7 +159,6 @@ class SupervisorHandler(engine: RulesEngine)
         val scs = sendables.zip(configs)
 
         scs.flatMap(x => x._2.map(x._1 -> _))
-
       case None => Nil
     }
   }
@@ -125,7 +167,7 @@ class SupervisorHandler(engine: RulesEngine)
     * Has the flag already been queued. If it has then we cannot re-queue it ie false.
     * If the flag is being reset then we always re-queue
     *
-    * @param doc document to queue
+    * @param doc    document to queue
     * @param config route config
     * @return
     */
@@ -139,7 +181,7 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Find the supervisor config block for a particular queue
     *
-    * @param sendable message that can be sent
+    * @param sendable    message that can be sent
     * @param sendableKey flag key of sendable
     * @return Config
     */
@@ -170,7 +212,7 @@ class SupervisorHandler(engine: RulesEngine)
   /**
     * Send messages to the appropriate queue and update the queued status for the doclib flags
     *
-    * @param d document wit id to send
+    * @param d   document wit id to send
     * @param msg incoming message from Rabbit
     * @return
     */
@@ -183,30 +225,4 @@ class SupervisorHandler(engine: RulesEngine)
     } yield sc -> publishResult
   }
 
-  /**
-    * handler for messages from the queue
-    * @param msg incoming message from Rabbit
-    * @param key String
-    * @return
-    */
-  def handle(msg: SupervisorMsg, key: String): Future[Option[Any]] = {
-
-    val updated: Future[(Seq[(Sendable[DoclibMsg], Config)], Boolean)] =
-      for {
-        doc <- readResetDoc(msg) if doc.nonEmpty
-        d = doc.head
-        result <- sendMessages(d, msg)
-      } yield result
-
-    updated.andThen {
-      case Success(r) =>
-        logger.info(s"Processed ${msg.id}. Sent ok=${r._2} messages=${r._1}")
-        handlerCount.labels(config.getString("consumer.name"), config.getString("consumer.queue"), "success").inc()
-      case Failure(e) =>
-        logger.error("error processing message", e)
-        handlerCount.labels(config.getString("consumer.name"), config.getString("consumer.queue"), "unknown_error").inc()
-    }
-
-    updated.map(Option.apply)
-  }
 }
