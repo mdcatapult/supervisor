@@ -12,14 +12,13 @@ object Chemical extends NER[DoclibMsg] {
 
   val isChemical: Regex = """(chemical/(.*))""".r
 
-  def resolve(doc: DoclibDoc)
+  def unapply(doc: DoclibDoc)
              (implicit config: Config, registry: Registry[DoclibMsg])
   : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
-    if (isChemical.findFirstIn(doc.mimetype).nonEmpty) {
+    if (isChemical.findFirstIn(doc.mimetype).nonEmpty)
       requiredNer()
-    } else {
+    else
       None
-    }
   }
 }

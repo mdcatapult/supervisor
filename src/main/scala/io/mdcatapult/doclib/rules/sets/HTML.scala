@@ -12,13 +12,12 @@ object HTML extends NER[DoclibMsg] {
 
   val isHtml: Regex = """(text/((x-server-parsed-|webview)*html))""".r
 
-  def resolve(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg])
-  : Option[(String, Sendables)] = {
+  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
-    if (isHtml.findFirstIn(doc.mimetype).nonEmpty) {
+    if (isHtml.findFirstIn(doc.mimetype).nonEmpty)
       requiredNer()
-    } else {
+    else
       None
-    }
   }
+
 }

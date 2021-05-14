@@ -124,13 +124,13 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
 
   "A non pdf doc" should "not be processed" in {
     val d = dummy.copy(mimetype = "dummy/mimetype")
-    val result = PDF.resolve(d)
+    val result = PDF.unapply(d)
     assert(result.isEmpty)
   }
 
   "A  PDF doc which has not been processed by image intermediates" should "return 1 image intermediate sendable" in {
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file")
-    val (key, result) = PDF.resolve(d).get
+    val (key, result) = PDF.unapply(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -154,7 +154,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       ended = Some(LocalDateTime.now)
     )
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = List(docFlag))
-    val (key, result) = PDF.resolve(d).get
+    val (key, result) = PDF.unapply(d).get
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
@@ -201,7 +201,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       )
     )
     val d = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
-    val result = Document.resolve(d)
+    val result = Document.unapply(d)
     assert(result.isEmpty)
   }
 

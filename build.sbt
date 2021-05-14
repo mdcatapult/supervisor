@@ -39,7 +39,6 @@ lazy val root = (project in file("."))
       }
     },
     libraryDependencies ++= Seq(
-      "net.jcazevedo" %% "moultingyaml" % "0.4.2",
       "org.scalactic" %% "scalactic"                  % "3.1.1",
       "org.scalatest" %% "scalatest"                  % "3.1.1" % "it, test",
       "org.scalamock" %% "scalamock"                  % "4.4.0" % "it, test",
@@ -52,6 +51,7 @@ lazy val root = (project in file("."))
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
       "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion,
+      "jakarta.ws.rs" % "jakarta.ws.rs-api"           % "2.1.4"
     ).map(
       _.exclude(org = "javax.ws.rs", name = "javax.ws.rs-api")
         .exclude(org = "com.sun.activation", name = "javax.activation")

@@ -79,12 +79,12 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 
 //  def baselineTests(r: Rule, flag: String, props: Seq[(String, BsonValue)] = List[(String, BsonValue)]()): Unit = {
 //    "An empty (invalid) Document" should " return None" in {
-//      assert(r.resolve(MongoDoc()).isEmpty)
+//      assert(r.unapply(MongoDoc()).isEmpty)
 //    }
 //
 //    "An un-started Document" should "return some Sendables " in {
 //      val d = MongoDoc(List("doclib" -> BsonArray(flag -> BsonNull())) ++ props)
-//      val result = r.resolve(d)
+//      val result = r.unapply(d)
 //      assert(result.isDefined)
 //      assert(result.get.isInstanceOf[Sendables])
 //      assert(result.get.isEmpty)
@@ -92,19 +92,19 @@ class CommonSpec extends TestKit(ActorSystem("SupervisorHandlerSpec", ConfigFact
 //
 //    "A valid Document with a TRUE flag " should " return None" in {
 //      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(true))) ++ props)
-//      val result = r.resolve(d)
+//      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }
 //
 //    "A valid Document with a FALSE flag " should "None" in {
 //      val d = MongoDoc(List("doclib" -> BsonDocument(flag -> BsonBoolean(false))) ++ props)
-//      val result = r.resolve(d)
+//      val result = r.unapply(d)
 //      assert(result.isEmpty)
 //    }
 //
 //    "A valid Document with no flag" should " return Some(Sendable) with at least one exchange" in {
 //      val d = MongoDoc() ++ props
-//      val result = r.resolve(d)
+//      val result = r.unapply(d)
 //      assert(result.nonEmpty)
 //      assert(result.get.nonEmpty)
 //      assert(result.get.head.isInstanceOf[Exchange[DoclibMsg]])

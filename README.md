@@ -12,7 +12,6 @@ Please refer to the [documentation](docs/index.md) for more info about the super
 
 The app allows runtime configuration via environment variables
 
-* **CONFIG_YAML_PATH** - path to configuration yml
 * **MONGO_USERNAME** - login username for mongodb
 * **MONGO_PASSWORD** - login password for mongodb
 * **MONGO_HOST** - host to connect to
