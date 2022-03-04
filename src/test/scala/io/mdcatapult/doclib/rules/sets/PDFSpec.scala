@@ -98,6 +98,7 @@ class PDFSpec extends TestKit(ActorSystem("PDFSpec", ConfigFactory.parseString(
       |    password = "doclib"
       |    port = 5672
       |    ssl = false
+      |    trust-everything = true
       |    connection-timeout = 3s
       |  }
       |}

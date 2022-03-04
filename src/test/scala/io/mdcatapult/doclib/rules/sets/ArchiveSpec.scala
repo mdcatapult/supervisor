@@ -52,6 +52,7 @@ class ArchiveSpec extends TestKit(ActorSystem("ArchiveSpec", ConfigFactory.parse
       |    password = "doclib"
       |    port = 5672
       |    ssl = false
+      |    trust-everything = true
       |    connection-timeout = 3s
       |  }
       |}
