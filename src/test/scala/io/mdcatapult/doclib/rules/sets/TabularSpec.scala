@@ -91,6 +91,7 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |    password = "doclib"
       |    port = 5672
       |    ssl = false
+      |    trust-everything = true
       |    connection-timeout = 3s
       |  }
       |}
