@@ -82,13 +82,17 @@ lazy val root = (project in file("."))
       case PathList(xs @ _*) if xs.last == "module-info.class" => MergeStrategy.first
       case PathList("org", "apache", "commons", _*) => MergeStrategy.first
       case PathList("com", "ctc", "wstx", _*) => MergeStrategy.first
+      case PathList("scala", "collection", "compat", _*) => MergeStrategy.first
+      case PathList("scala", "util", "control", "compat", _*) => MergeStrategy.first
       case PathList(xs @ _*) if xs.last == "public-suffix-list.txt" => MergeStrategy.first
       case PathList(xs @ _*) if xs.last == ".gitkeep" => MergeStrategy.discard
       case n if n.startsWith("application.conf") => MergeStrategy.first
       case n if n.endsWith(".conf") => MergeStrategy.concat
       case n if n.startsWith("logback.xml") => MergeStrategy.first
+      case n if n.startsWith("scala-collection-compat.properties") => MergeStrategy.first
       case meta(_) => MergeStrategy.first
       case "META-INF/jpms.args" => MergeStrategy.discard
+      case "META-INF/io.netty.versions.properties" => MergeStrategy.discard
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
