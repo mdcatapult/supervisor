@@ -22,8 +22,7 @@ lazy val root = (project in file("."))
       "-deprecation",
       "-explaintypes",
       "-feature",
-      "-Xlint",
-      "-Xfatal-warnings",
+      "-Xlint"
     ),
     useCoursier   := false,
     resolvers         ++= Seq(
@@ -38,21 +37,33 @@ lazy val root = (project in file("."))
           Credentials(Path.userHome / ".sbt" / ".credentials")
       }
     },
-    libraryDependencies ++= Seq(
-      "net.jcazevedo" %% "moultingyaml" % "0.4.2",
-      "org.scalactic" %% "scalactic"                  % "3.1.1",
-      "org.scalatest" %% "scalatest"                  % "3.1.1" % "it, test",
-      "org.scalamock" %% "scalamock"                  % "4.4.0" % "it, test",
+    libraryDependencies ++= {
+      val doclibCommonVersion = "3.1.1"
+
+      val configVersion = "1.4.1"
+      val akkaVersion = "2.6.18"
+      val catsVersion = "2.6.1"
+      val scalacticVersion = "3.2.10"
+      val scalaTestVersion = "3.2.11"
+      val scalaMockVersion = "5.2.0"
+      val scalaLoggingVersion = "3.9.4"
+      val logbackClassicVersion = "1.2.10"
+      val moultingYamlVersion = "0.4.2"
+      Seq(
+      "net.jcazevedo" %% "moultingyaml"               % moultingYamlVersion,
+      "org.scalactic" %% "scalactic"                  % scalacticVersion,
+      "org.scalatest" %% "scalatest"                  % scalaTestVersion % "it, test",
+      "org.scalamock" %% "scalamock"                  % scalaMockVersion % "it, test",
       "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % "it, test",
       "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,
-      "ch.qos.logback" % "logback-classic"            % "1.2.3",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
+      "ch.qos.logback" % "logback-classic"            % logbackClassicVersion,
+      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
       "com.typesafe" % "config"                       % configVersion,
-      "org.typelevel" %% "cats-macros"                % catsVersion,
       "org.typelevel" %% "cats-kernel"                % catsVersion,
       "org.typelevel" %% "cats-core"                  % catsVersion,
       "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion,
-    ).map(
+    )
+    }.map(
       _.exclude(org = "javax.ws.rs", name = "javax.ws.rs-api")
         .exclude(org = "com.sun.activation", name = "javax.activation")
         .exclude(org = "com.sun.activation", name = "registries")
