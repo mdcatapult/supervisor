@@ -103,6 +103,7 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       |    password = "doclib"
       |    port = 5672
       |    ssl = false
+      |    trust-everything = true
       |    connection-timeout = 3s
       |  }
       |}

@@ -90,6 +90,7 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |    password = "doclib"
       |    port = 5672
       |    ssl = false
+      |    trust-everything = true
       |    connection-timeout = 3s
       |  }
       |}
