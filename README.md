@@ -25,7 +25,7 @@ The app allows runtime configuration via environment variables
 * **RABBITMQ_PORT** - optional: port to connect to (default: 5672)
 * **RABBITMQ_VHOST** - optional: vhost to connect to (default: /)
 * **RABBITMQ_DOCLIB_EXCHANGE** - optional: exchange that the consumer should be bound to
-* **CONSUMER_QUEUE** - optional: name of the queue to consume (default: klein.prefetch)
+* **CONSUMER_QUEUE** - optional: name of the queue to consume (recommended: supervisor)
 * **CONSUMER_CONCURRENCY** - optional: number of messages to handle concurrently (default: 1)
 * **ANALYTICAL_SUPERVISOR** - `true` or `false` (default: `false`) whether docs should be queued onto the analytical supervisor after other processing has completed
 
