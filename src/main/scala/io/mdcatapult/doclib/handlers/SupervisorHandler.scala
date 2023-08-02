@@ -1,7 +1,7 @@
 package io.mdcatapult.doclib.handlers
 
 import akka.actor.ActorSystem
-import akka.stream.alpakka.amqp.javadsl.CommittableReadResult
+import akka.stream.alpakka.amqp.scaladsl.CommittableReadResult
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.consumer.{AbstractHandler, HandlerResult}
@@ -57,15 +57,15 @@ class SupervisorHandler(engine: RulesEngine,
   /**
     * handler for messages from the queue
     *
-    * @param supervisorMessage incoming message from Rabbit
+    * @param supervisorMessageWrapper incoming message from Rabbit
     * @return
     */
-  def handle(supervisorMessage: CommittableReadResult): Future[(CommittableReadResult, Try[SupervisorHandlerResult])
+  def handle(supervisorMessageWrapper: CommittableReadResult): Future[(CommittableReadResult, Try[SupervisorHandlerResult])
   ] = {
 
 
     Try {
-      Json.parse(supervisorMessage.message.bytes.utf8String).as[SupervisorMsg]
+      Json.parse(supervisorMessageWrapper.message.bytes.utf8String).as[SupervisorMsg]
     } match {
       case Success(msg: SupervisorMsg) => {
         logReceived(msg.id)
@@ -76,20 +76,22 @@ class SupervisorHandler(engine: RulesEngine,
             result <- sendMessages(d, msg)
           } yield Option(SupervisorHandlerResult(d, result._1, result._2))
         val finalResult = supervisorProcess.transformWith({
-          case Success(Some(value: SupervisorHandlerResult)) => Future
+          case Success(Some(value: SupervisorHandlerResult)) => Future((supervisorMessageWrapper, Success(value)))
+          case Success(None) => Future ((supervisorMessageWrapper, Failure(new Exception(s"No supervisor result was present for ${msg.id}"))))
+          case Failure(e) => Future((supervisorMessageWrapper, Failure(e)))
         })
+
+        postHandleProcess(
+          msg.id,
+          finalResult,
+          flagContext,
+          collection
+        ).andThen {
+          case Success(result) =>
+            logger.info(s"Sent ok=${result._2.get.publishResult} messages=${result._2.get.doclibMessagesWithConfig}")
+        }
       }
-    }
-
-
-    postHandleProcess(
-      supervisorMessage.id,
-      updated,
-      flagContext,
-      collection
-    ).andThen {
-      case Success(Some(result)) =>
-        logger.info(s"Sent ok=${result.publishResult} messages=${result.doclibMessagesWithConfig}")
+      case Failure(x: Throwable) => Future((supervisorMessageWrapper, Failure(new Exception(s"Unable to decode message received. ${x.getMessage}"))))
     }
   }
 
