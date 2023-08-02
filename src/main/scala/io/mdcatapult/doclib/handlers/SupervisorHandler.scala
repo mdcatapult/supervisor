@@ -1,6 +1,7 @@
 package io.mdcatapult.doclib.handlers
 
 import akka.actor.ActorSystem
+import akka.stream.alpakka.amqp.javadsl.CommittableReadResult
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.consumer.{AbstractHandler, HandlerResult}
@@ -16,6 +17,7 @@ import io.mdcatapult.util.time.nowUtc
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal
+import play.api.libs.json.Json
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
@@ -48,29 +50,40 @@ class SupervisorHandler(engine: RulesEngine,
                         ec: ExecutionContext,
                         appConfig: AppConfig,
                         config: Config,
-                        collection: MongoCollection[DoclibDoc]) extends AbstractHandler[SupervisorMsg] with LazyLogging {
+                        collection: MongoCollection[DoclibDoc]) extends AbstractHandler[SupervisorMsg, SupervisorHandlerResult] with LazyLogging {
 
   class AlreadyQueuedException(docId: ObjectId, flag: String) extends Exception(s"Flag $flag for Document $docId has already been queued")
 
   /**
     * handler for messages from the queue
     *
-    * @param message incoming message from Rabbit
+    * @param supervisorMessage incoming message from Rabbit
     * @return
     */
-  def handle(message: SupervisorMsg): Future[Option[SupervisorHandlerResult]] = {
+  def handle(supervisorMessage: CommittableReadResult): Future[(CommittableReadResult, Try[SupervisorHandlerResult])
+  ] = {
 
-    val flagContext = new MongoFlagContext(appConfig.name, Version.fromConfig(config), collection, nowUtc)
 
-    val updated: Future[Option[SupervisorHandlerResult]] =
-      for {
-        doc <- readResetDoc(message) if doc.nonEmpty
-        d = doc.head
-        result <- sendMessages(d, message)
-      } yield Option(SupervisorHandlerResult(d, result._1, result._2))
+    Try {
+      Json.parse(supervisorMessage.message.bytes.utf8String).as[SupervisorMsg]
+    } match {
+      case Success(msg: SupervisorMsg) => {
+        logReceived(msg.id)
+        val flagContext = new MongoFlagContext(appConfig.name, Version.fromConfig(config), collection, nowUtc)
+        val supervisorProcess: Future[Option[SupervisorHandlerResult]] = for {
+            doc <- readResetDoc(msg) if doc.nonEmpty
+            d = doc.head
+            result <- sendMessages(d, msg)
+          } yield Option(SupervisorHandlerResult(d, result._1, result._2))
+        val finalResult = supervisorProcess.transformWith({
+          case Success(Some(value: SupervisorHandlerResult)) => Future
+        })
+      }
+    }
+
 
     postHandleProcess(
-      message.id,
+      supervisorMessage.id,
       updated,
       flagContext,
       collection

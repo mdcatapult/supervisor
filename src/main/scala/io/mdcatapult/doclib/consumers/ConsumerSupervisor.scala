@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import com.spingo.op_rabbit.SubscriptionRef
 import io.mdcatapult.doclib.consumer.AbstractConsumer
-import io.mdcatapult.doclib.handlers.SupervisorHandler
+import io.mdcatapult.doclib.handlers.{SupervisorHandler, SupervisorHandlerResult}
 import io.mdcatapult.doclib.messages.SupervisorMsg
 import io.mdcatapult.doclib.models.{AppConfig, DoclibDoc}
 import io.mdcatapult.klein.mongo.Mongo
@@ -19,9 +19,9 @@ import scala.util.Try
 /**
   * RabbitMQ Consumer to handle NER detection using leadmine for documents in MongoDB
   */
-object ConsumerSupervisor extends AbstractConsumer {
+object ConsumerSupervisor extends AbstractConsumer[SupervisorMsg, SupervisorHandlerResult] {
 
-  def start()(implicit as: ActorSystem, m: Materializer, mongo: Mongo): SubscriptionRef = {
+  def start()(implicit as: ActorSystem, m: Materializer, mongo: Mongo): Unit = {
     import as.dispatcher
 
     AdminServer(config).start()
@@ -38,7 +38,7 @@ object ConsumerSupervisor extends AbstractConsumer {
       )
 
 
-    val upstream: Queue[SupervisorMsg] = queue("consumer.queue")
+    val upstream: Queue[SupervisorMsg, SupervisorHandlerResult] = Queue[SupervisorMsg, SupervisorHandlerResult](config.getString("consumer.queue"))
 
     val readLimiter = SemaphoreLimitedExecution.create(config.getInt("mongo.read-limit"))
     val writeLimiter = SemaphoreLimitedExecution.create(config.getInt("mongo.write-limit"))
