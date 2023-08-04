@@ -1,10 +1,12 @@
 package io.mdcatapult.doclib.rules.sets
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.NER
-import io.mdcatapult.klein.queue.Registry
+
+import scala.concurrent.ExecutionContext
 
 object XML extends NER[DoclibMsg] {
 
@@ -22,7 +24,7 @@ object XML extends NER[DoclibMsg] {
   )
 
   def unapply(doc: DoclibDoc)
-             (implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
+             (implicit config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     if (validDocuments.contains(doc.mimetype))
       requiredNer()

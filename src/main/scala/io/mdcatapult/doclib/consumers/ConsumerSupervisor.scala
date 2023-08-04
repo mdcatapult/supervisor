@@ -2,7 +2,6 @@ package io.mdcatapult.doclib.consumers
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import com.spingo.op_rabbit.SubscriptionRef
 import io.mdcatapult.doclib.consumer.AbstractConsumer
 import io.mdcatapult.doclib.handlers.{SupervisorHandler, SupervisorHandlerResult}
 import io.mdcatapult.doclib.messages.SupervisorMsg

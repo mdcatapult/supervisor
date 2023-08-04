@@ -1,10 +1,12 @@
 package io.mdcatapult.doclib.rules.sets
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.SupervisorRule
-import io.mdcatapult.klein.queue.Registry
+
+import scala.concurrent.ExecutionContext
 
 object Analytical extends SupervisorRule[DoclibMsg] {
 
@@ -16,7 +18,7 @@ object Analytical extends SupervisorRule[DoclibMsg] {
     * @param registry Registry
     * @return
     */
-  override def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] =
+  override def unapply(doc: DoclibDoc)(implicit config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] =
     if (config.getBoolean("analytical.supervisor"))
       doTask("supervisor.analytical", doc)
     else

@@ -10,7 +10,6 @@ import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}
 import io.mdcatapult.doclib.models.{AppConfig, DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.codec.MongoCodecs
 import io.mdcatapult.klein.mongo.Mongo
-import io.mdcatapult.klein.queue.Registry
 import io.mdcatapult.util.concurrency.SemaphoreLimitedExecution
 import io.mdcatapult.util.models.Version
 import org.bson.codecs.configuration.CodecRegistry
@@ -134,7 +133,6 @@ class SupervisorHandlerSpec extends TestKit(ActorSystem("SupervisorHandlerSpec",
       |}
     """.stripMargin)
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
   implicit val codecs: CodecRegistry = MongoCodecs.get
   val mongo: Mongo = new Mongo()
 

@@ -41,7 +41,7 @@ object SupervisorHandler {
 
 case class SupervisorHandlerResult(doclibDoc: DoclibDoc,
                                    doclibMessagesWithConfig: Seq[(Sendable[DoclibMsg], Config)],
-                                   publishResult: Boolean) extends HandlerResult
+                                   publishResult: Future[Boolean]) extends HandlerResult
 
 class SupervisorHandler(engine: RulesEngine,
                         val readLimiter: LimitedExecution,
@@ -125,13 +125,23 @@ class SupervisorHandler(engine: RulesEngine,
     * @param doc document with id to send
     * @return
     */
-  def publish(sendableConfigs: Seq[(Sendable[DoclibMsg], Config)], doc: DoclibDoc): Boolean = {
-    Try(
-      sendableConfigs.foreach { s => s._1.send(DoclibMsg(doc._id.toHexString)) }
-    ) match {
-      case Success(_) => true
-      case Failure(e) => throw e
+  def publish(sendableConfigs: Seq[(Sendable[DoclibMsg], Config)], doc: DoclibDoc): Future[Boolean] = {
+    val c = for {
+      a <- sendableConfigs
+      b = a._1.send(DoclibMsg(doc._id.toHexString))
+    } yield b
+    val d = Future.sequence(c).transformWith {
+      case Success(list) => Future(true)
+      case Failure(e) => Future.failed(e)
     }
+    d
+
+//    Try(
+//      sendableConfigs.foreach { s => s._1.send(DoclibMsg(doc._id.toHexString)) }
+//    ) match {
+//      case Success(_) => true
+//      case Failure(e) => throw e
+//    }
   }
 
   /**
@@ -231,7 +241,7 @@ class SupervisorHandler(engine: RulesEngine,
     * @param msg incoming message from Rabbit
     * @return
     */
-  def sendMessages(d: DoclibDoc, msg: SupervisorMsg): Future[(Seq[(Sendable[DoclibMsg], Config)], Boolean)] = {
+  def sendMessages(d: DoclibDoc, msg: SupervisorMsg): Future[(Seq[(Sendable[DoclibMsg], Config)], Future[Boolean])] = {
     val sc: Seq[(Sendable[DoclibMsg], Config)] = sendableConfig(d, msg)
     val publishResult = publish(sc, d)
 

@@ -36,7 +36,7 @@ lazy val root = (project in file("."))
       val doclibCommonVersion = "4.0.0"
 
       val configVersion = "1.4.2"
-      val akkaVersion = "2.8.0"
+      val akkaVersion = "2.8.1"
       val catsVersion = "2.9.0"
       val scalacticVersion = "3.2.15"
       val scalaTestVersion = "3.2.15"

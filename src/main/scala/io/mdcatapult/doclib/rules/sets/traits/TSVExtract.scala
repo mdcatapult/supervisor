@@ -1,9 +1,12 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.{Envelope, Registry}
+import io.mdcatapult.klein.queue.Envelope
+
+import scala.concurrent.ExecutionContext
 
 /**
   * Check if spreadsheet formatted document is valid for extraction
@@ -29,7 +32,7 @@ trait TSVExtract[T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredExtraction()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
+  def requiredExtraction()(implicit doc: DoclibDoc, config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] = {
     if (extractMimetypes.contains(doc.mimetype)) {
       doTask("supervisor.tabular.totsv", doc)
     } else {

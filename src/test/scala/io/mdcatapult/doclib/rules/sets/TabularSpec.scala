@@ -1,19 +1,20 @@
 package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.klein.queue.Queue
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -71,29 +72,15 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       |    }]
       |  }
       |}
-      |op-rabbit {
-      |  topic-exchange-name = "doclib"
-      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
-      |  default-channel-dispatcher {
-      |    type = Dispatcher
-      |    executor = "fork-join-executor"
-      |    fork-join-executor {
-      |      parallelism-min = 2
-      |      parallelism-factor = 2.0
-      |      parallelism-max = 4
-      |    }
-      |    throughput = 1
-      |  }
-      |  connection {
-      |    virtual-host = "doclib"
-      |    hosts = ["localhost"]
-      |    username = "doclib"
-      |    password = "doclib"
-      |    port = 5672
-      |    ssl = false
-      |    trust-everything = true
-      |    connection-timeout = 3s
-      |  }
+      |queue {
+      |  max-retries = 3
+      |  host = "localhost"
+      |  virtual-host = "doclib"
+      |  username = "doclib"
+      |  password = "doclib"
+      |  port = 5672
+      |  ssl = false
+      |  connection-timeout = 3000
       |}
       |error {
       |  queue = false
@@ -104,7 +91,6 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val dummy: DoclibDoc = DoclibDoc(
     _id = new ObjectId(),
@@ -134,10 +120,10 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     implicit val d: DoclibDoc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
     val (key, result) = Tabular.getSendables("supervisor.tabular.totsv")
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("tabular.totsv")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A Tabular doc with partially completed extraction" should { "return empty sendables" in {
@@ -229,8 +215,8 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.head.isInstanceOf[Queue[DoclibMsg]])
-    assert(result.head.asInstanceOf[Queue[DoclibMsg]].name == "tabular.totsv")
+    assert(result.head.isInstanceOf[Queue[DoclibMsg, DoclibMsg]])
+    assert(result.head.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name == "tabular.totsv")
   }}
 
   "An extracted spreadsheet" should { "return None" in {
@@ -254,10 +240,10 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 3)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A  tabular doc which has been NER'd" should { "be analysed and not NER'd" in {
@@ -271,10 +257,10 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("tabular.analysis")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A text doc" should { "not be analysed" in {
@@ -319,10 +305,10 @@ class TabularSpec extends TestKit(ActorSystem("TabularSpec", ConfigFactory.parse
       )
       val (key, result) = Tabular.unapply(doc).get
       assert(result.length == 2)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("ner.chemicalentities","ner.chemicalidentifiers")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     }
   }
 

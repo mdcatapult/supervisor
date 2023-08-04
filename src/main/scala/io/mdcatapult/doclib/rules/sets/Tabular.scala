@@ -1,11 +1,12 @@
 package io.mdcatapult.doclib.rules.sets
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.traits.{NER, TSVExtract, TabularAnalysis}
-import io.mdcatapult.klein.queue.Registry
 
+import scala.concurrent.ExecutionContext
 import scala.util.matching.Regex
 
 /**
@@ -24,7 +25,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     * @param registry Registry
     * @return
     */
-  def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, registry: Registry[DoclibMsg]): Option[(String, Sendables)] = {
+  def nerOrAnalysis(doc: DoclibDoc)(implicit config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] = {
     // NER first then analysis but only on text/tab-*
     implicit val document: DoclibDoc = doc
 
@@ -46,7 +47,7 @@ object Tabular extends TSVExtract[DoclibMsg] with TabularAnalysis[DoclibMsg] wit
     * @return Option[Sendables] List of Queue to process this doc
     */
   def unapply(doc: DoclibDoc)
-  (implicit config: Config, registry: Registry[DoclibMsg])
+  (implicit config: Config, m: Materializer, ex: ExecutionContext)
         : Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
 

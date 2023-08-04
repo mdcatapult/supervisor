@@ -1,9 +1,12 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.{Envelope, Registry}
+import io.mdcatapult.klein.queue.Envelope
+
+import scala.concurrent.ExecutionContext
 
 /**
   * Convert document to raw text
@@ -50,7 +53,7 @@ trait RawText [T <: Envelope] extends SupervisorRule[T]{
     * @param registry Registry
     * @return
     */
-  def requiredRawTextConversion()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
+  def requiredRawTextConversion()(implicit doc: DoclibDoc, config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] = {
     if (convertMimetypes.contains(doc.mimetype)) {
       doTask("supervisor.text", doc)
     } else {

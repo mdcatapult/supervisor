@@ -1,18 +1,19 @@
 package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.klein.queue.Queue
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisorSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -41,7 +42,6 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
     """.stripMargin).withFallback(ConfigFactory.load())
 
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -94,10 +94,10 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("analytical.supervisor")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A JPEG doc which has an existing analytical supervisor flag" should "return analytical supervisor sendable" in {
@@ -119,10 +119,10 @@ class AnalyticalSupervisorSpec extends TestKit(ActorSystem("AnalyticalSupervisor
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("analytical.supervisor")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
 }

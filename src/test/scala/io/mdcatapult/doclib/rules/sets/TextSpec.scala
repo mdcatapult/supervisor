@@ -1,19 +1,20 @@
 package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.klein.queue.Queue
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -64,29 +65,15 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
       |    }]
       |  }
       |}
-      |op-rabbit {
-      |  topic-exchange-name = "doclib"
-      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
-      |  default-channel-dispatcher {
-      |    type = Dispatcher
-      |    executor = "fork-join-executor"
-      |    fork-join-executor {
-      |      parallelism-min = 2
-      |      parallelism-factor = 2.0
-      |      parallelism-max = 4
-      |    }
-      |    throughput = 1
-      |  }
-      |  connection {
-      |    virtual-host = "doclib"
-      |    hosts = ["localhost"]
-      |    username = "doclib"
-      |    password = "doclib"
-      |    port = 5672
-      |    ssl = false
-      |    trust-everything = true
-      |    connection-timeout = 3s
-      |  }
+      |queue {
+      |  max-retries = 3
+      |  host = "localhost"
+      |  virtual-host = "doclib"
+      |  username = "doclib"
+      |  password = "doclib"
+      |  port = 5672
+      |  ssl = false
+      |  connection-timeout = 3000
       |}
       |error {
       |  queue = false
@@ -97,7 +84,6 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -129,10 +115,10 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 3)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A  text doc which has been NER'd" should { "not be NER'd again" in {
@@ -156,10 +142,10 @@ class TextSpec extends TestKit(ActorSystem("TextSpec", ConfigFactory.parseString
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A  text doc which has all NER flags but without some end timestamp" should { "have no sendables" in {
