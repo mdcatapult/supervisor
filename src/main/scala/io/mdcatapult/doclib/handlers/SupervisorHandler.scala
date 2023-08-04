@@ -126,22 +126,14 @@ class SupervisorHandler(engine: RulesEngine,
     * @return
     */
   def publish(sendableConfigs: Seq[(Sendable[DoclibMsg], Config)], doc: DoclibDoc): Future[Boolean] = {
-    val c = for {
-      a <- sendableConfigs
-      b = a._1.send(DoclibMsg(doc._id.toHexString))
-    } yield b
-    val d = Future.sequence(c).transformWith {
+    val sendConfirmations = for {
+      sendableConfig <- sendableConfigs
+      sendConfirmation = sendableConfig._1.send(DoclibMsg(doc._id.toHexString))
+    } yield sendConfirmation
+    Future.sequence(sendConfirmations).transformWith {
       case Success(list) => Future(true)
       case Failure(e) => Future.failed(e)
     }
-    d
-
-//    Try(
-//      sendableConfigs.foreach { s => s._1.send(DoclibMsg(doc._id.toHexString)) }
-//    ) match {
-//      case Success(_) => true
-//      case Failure(e) => throw e
-//    }
   }
 
   /**
