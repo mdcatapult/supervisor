@@ -1,9 +1,12 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.{Envelope, Registry}
+import io.mdcatapult.klein.queue.Envelope
+
+import scala.concurrent.ExecutionContext
 
 trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
 
@@ -19,7 +22,7 @@ trait ImageIntermediate[T <: Envelope] extends SupervisorRule[T] {
     * @param registry Registry
     * @return
     */
-  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, registry: Registry[T]): Option[(String, Sendables)] =
+  def requiredImageIntermediate()(implicit doc: DoclibDoc, config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] =
     if (mimeTypes.contains(doc.mimetype))
       doTask("supervisor.image_intermediate", doc)
     else

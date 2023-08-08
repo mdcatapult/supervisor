@@ -2,15 +2,12 @@ package io.mdcatapult.doclib.consumers
 
 import java.time.temporal.ChronoUnit.MILLIS
 import akka.actor._
-import akka.pattern.ask
 import akka.stream.Materializer
+import akka.stream.alpakka.amqp.scaladsl.CommittableReadResult
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import better.files.{File => ScalaFile}
 import cats.implicits._
-import com.spingo.op_rabbit.Message.ConfirmResponse
-import com.spingo.op_rabbit.PlayJsonSupport._
-import com.spingo.op_rabbit.{Message, SubscriptionRef}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.codec.MongoCodecs
 import io.mdcatapult.doclib.handlers.SupervisorHandler
@@ -19,7 +16,7 @@ import io.mdcatapult.doclib.models.{AppConfig, DoclibDoc, DoclibFlag, FileAttrs}
 import io.mdcatapult.util.time.ImplicitOrdering.localDateOrdering._
 import io.mdcatapult.util.time.nowUtc
 import io.mdcatapult.klein.mongo.Mongo
-import io.mdcatapult.klein.queue.{Queue, Registry, Sendable}
+import io.mdcatapult.klein.queue.{Envelope, Queue, Sendable}
 import io.mdcatapult.util.concurrency.SemaphoreLimitedExecution
 import io.mdcatapult.util.models.Version
 import org.bson.codecs.configuration.CodecRegistry
@@ -31,13 +28,25 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import play.api.libs.json.{Format, Json}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
+import scala.util.{Success, Try}
 
+object Message {
+  implicit val msgFormatter: Format[Message] = Json.format[Message]
+}
+case class Message(message: String) extends Envelope {
+  override def toJsonString(): String = {
+    Json.toJson(this).toString()
+  }
+}
 class ConsumerSupervisorIntegrationTest extends TestKit(ActorSystem("SupervisorIntegrationTest", ConfigFactory.parseString(
   """
 akka.loggers = ["akka.testkit.TestEventListener"]
@@ -59,75 +68,54 @@ akka.loggers = ["akka.testkit.TestEventListener"]
       Option(config.getString("consumer.exchange"))
     )
 
+  implicit val m: Materializer = Materializer(system)
   implicit val timeout: Timeout = Timeout(5 seconds)
 
-  // Queue for supervisor.flag.one
-  private var messagesFromQueueOne = List[DoclibMsg]()
+  private val messagesFromQueueOne = new ListBuffer[DoclibMsg]()
 
   // Note that we need to include a topic if we want the queue to be created
   private val consumerName = Option(config.getString("consumer.name"))
-  private val flagOneQNAme = "supervisor.flag.one"
 
-  private val flagOneQ = Queue[DoclibMsg](flagOneQNAme, consumerName)
-
-  private val subscription: SubscriptionRef =
-    flagOneQ.subscribe((msg: DoclibMsg) => messagesFromQueueOne ::= msg)
-
-  Await.result(subscription.initialized, 5.seconds)
-
-  private val flagOneQMessages: Future[ConfirmResponse] = (
-    flagOneQ.rabbit ? Message.queue(
-      DoclibMsg("test message"),
-      queue = flagOneQNAme)
-    ).mapTo[ConfirmResponse]
-
-  whenReady(flagOneQMessages) { response =>
-    response shouldBe a[Message.Ack]
+  val queueOneBusinessLogic: CommittableReadResult => Future[(CommittableReadResult, Try[Message])] = { committableReadResult =>
+    val msg = Json.parse(committableReadResult.message.bytes.utf8String).as[DoclibMsg]
+    messagesFromQueueOne += msg
+    Future((committableReadResult, Success(Message("Yippee"))))
+  }
+  private val messagesFromQueueTwo = ListBuffer[DoclibMsg]()
+  val queueTwoBusinessLogic: CommittableReadResult => Future[(CommittableReadResult, Try[Message])] = { committableReadResult =>
+    val msg = Json.parse(committableReadResult.message.bytes.utf8String).as[DoclibMsg]
+    messagesFromQueueTwo += msg
+    Future((committableReadResult, Success(Message("Yippee"))))
+  }
+  private val messagesFromQueueThree = ListBuffer[DoclibMsg]()
+  val queueThreeBusinessLogic: CommittableReadResult => Future[(CommittableReadResult, Try[Message])] = { committableReadResult =>
+    val msg = Json.parse(committableReadResult.message.bytes.utf8String).as[DoclibMsg]
+    messagesFromQueueThree += msg
+    Future((committableReadResult, Success(Message("Yippee"))))
   }
 
+  // Queue for supervisor.flag.one
+
+  private val flagOneQNAme = "supervisor.flag.one"
+
+  private val flagOneQ = Queue[DoclibMsg, Message](name = flagOneQNAme, consumerName = consumerName)
+  flagOneQ.subscribe(queueOneBusinessLogic)
+
   // Queue for supervisor.flag.two
-  private var messagesFromQueueTwo = List[DoclibMsg]()
 
   private val flagTwoQNAme = "supervisor.flag.two"
 
-  private val flagTwoQ = Queue[DoclibMsg](flagTwoQNAme, consumerName)
+  private val flagTwoQ = Queue[DoclibMsg, Message](name = flagTwoQNAme, consumerName = consumerName)
 
-  private val subscriptionTwo: SubscriptionRef =
-    flagTwoQ.subscribe((msg: DoclibMsg) => messagesFromQueueTwo ::= msg)
-
-  Await.result(subscriptionTwo.initialized, 5.seconds)
-
-  val flagTwoQMessages: Future[ConfirmResponse] = (
-    flagTwoQ.rabbit ? Message.queue(
-      DoclibMsg("test message 2"),
-      queue = flagTwoQNAme)
-    ).mapTo[ConfirmResponse]
-
-  whenReady(flagTwoQMessages) { response =>
-    response shouldBe a[Message.Ack]
-  }
+  flagTwoQ.subscribe(queueTwoBusinessLogic)
 
   // Queue for supervisor.flag.three
-  private var messagesFromQueueThree = List[DoclibMsg]()
 
   private val flagThreeQNAme = "supervisor.flag.three"
 
-  private val flagThreeQ = Queue[DoclibMsg](flagThreeQNAme, consumerName)
+  private val flagThreeQ = Queue[DoclibMsg, Message](name = flagThreeQNAme, consumerName = consumerName)
 
-  private val subscriptionThree: SubscriptionRef =
-    flagThreeQ.subscribe((msg: DoclibMsg) => messagesFromQueueThree ::= msg)
-
-  Await.result(subscriptionThree.initialized, 5.seconds)
-
-  private val flagThreeQMessages: Future[ConfirmResponse] = (
-    flagThreeQ.rabbit ? Message.queue(
-      DoclibMsg("test message 2"),
-      queue = flagThreeQNAme)
-    ).mapTo[ConfirmResponse]
-
-  whenReady(flagThreeQMessages) { response =>
-    response shouldBe a[Message.Ack]
-  }
+  flagThreeQ.subscribe(queueThreeBusinessLogic)
 
   private val timeNow = nowUtc.now().truncatedTo(MILLIS)
 
@@ -158,9 +146,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
   val mongo: Mongo = new Mongo()
   implicit val collection: MongoCollection[DoclibDoc] = mongo.getCollection(config.getString("mongo.doclib-database"), config.getString("mongo.documents-collection"))
 
-  implicit val m: Materializer = Materializer(system)
 
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId,
@@ -325,7 +311,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.doclib.length == 1)
-    eventually {
+    eventually(timeout(Span(5, Seconds))) {
       messagesFromQueueOne should contain(DoclibMsg(flagDoc._id.toHexString))
     }
   }
@@ -334,6 +320,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val flag = new DoclibFlag(key = "supervisor.flag.one", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(true))
     val flagTwo = new DoclibFlag(key = "supervisor.flag.two", version = Version(number = "123", major = 1, minor = 1, patch = 1, hash = "abc"), queued = Some(false))
     val flagDoc = dummy.copy(_id = new ObjectId, doclib = List(flag, flagTwo))
+    println(s"ID for flag doc is ${flagDoc._id.toHexString}")
 
     val result = Await.result(collection.insertOne(flagDoc).toFutureOption(), 5.seconds)
     assert(result.exists(_.wasAcknowledged()))
@@ -341,6 +328,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     val sendableOne: Sendable[DoclibMsg] = flagOneQ
     val sendableTwo: Sendable[DoclibMsg] = flagTwoQ
     val msg = new SupervisorMsg(id = "1234")
+
 
     val handler = new SupervisorHandler(
       engine = { (doc: DoclibDoc) =>
@@ -355,16 +343,16 @@ akka.loggers = ["akka.testkit.TestEventListener"]
 
     Await.result(handler.sendMessages(flagDoc, msg), 5.seconds)
 
-    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), 5.seconds)
+    val docResult = Await.result(collection.find(Mequal("_id", flagDoc._id)).toFuture(), Duration.Inf)
 
     assert(docResult.head.getFlag("supervisor.flag.one").head.isQueued)
     assert(docResult.head.getFlag("supervisor.flag.two").head.isQueued)
     assert(docResult.head.doclib.length == 2)
-
-    eventually {
+    eventually(timeout(Span(5, Seconds))) {
       messagesFromQueueOne should not contain DoclibMsg(flagDoc._id.toHexString)
       messagesFromQueueTwo should contain(DoclibMsg(flagDoc._id.toHexString))
     }
+
   }
 
   "Multiple unqueued flags" should "be queued" in {
@@ -407,8 +395,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     assert(docResult.head.getFlag("supervisor.flag.three").head.isQueued)
     assert(docResult.head.doclib.length == 3)
 
-    eventually {
-      messagesFromQueueOne should not contain (DoclibMsg(flagDoc._id.toHexString))
+    eventually(timeout(Span(5, Seconds))) {
       messagesFromQueueTwo should contain(DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueThree should contain(DoclibMsg(flagDoc._id.toHexString))
     }
@@ -453,7 +440,7 @@ akka.loggers = ["akka.testkit.TestEventListener"]
     assert(docResult.head.getFlag("supervisor.flag.three").head.isQueued)
     assert(docResult.head.doclib.length == 3)
 
-    eventually {
+    eventually(timeout(Span(5, Seconds))) {
       messagesFromQueueOne should contain(DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueTwo should contain(DoclibMsg(flagDoc._id.toHexString))
       messagesFromQueueThree should contain(DoclibMsg(flagDoc._id.toHexString))

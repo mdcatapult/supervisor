@@ -1,7 +1,6 @@
 package io.mdcatapult.doclib.rules
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
@@ -9,12 +8,14 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.rules.sets._
-import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.klein.queue.Queue
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseString(
   """
@@ -84,28 +85,15 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       |    }]
       |  }
       |}
-      |op-rabbit {
-      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
-      |  default-channel-dispatcher {
-      |    type = Dispatcher
-      |    executor = "fork-join-executor"
-      |    fork-join-executor {
-      |      parallelism-min = 2
-      |      parallelism-factor = 2.0
-      |      parallelism-max = 4
-      |    }
-      |    throughput = 1
-      |  }
-      |  connection {
-      |    virtual-host = "doclib"
-      |    hosts = ["localhost"]
-      |    username = "doclib"
-      |    password = "doclib"
-      |    port = 5672
-      |    ssl = false
-      |    trust-everything = true
-      |    connection-timeout = 3s
-      |  }
+      |queue {
+      |  max-retries = 3
+      |  host = "localhost"
+      |  virtual-host = "doclib"
+      |  username = "doclib"
+      |  password = "doclib"
+      |  port = 5672
+      |  ssl = false
+      |  connection-timeout = 3000
       |}
     """.stripMargin).withFallback(ConfigFactory.load())
 
@@ -134,7 +122,6 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
   )
 
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   val engine: RulesEngine = new Engine()
 
@@ -167,10 +154,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 1)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("tabular.totsv")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -178,10 +165,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doc = dummy.copy(mimetype = "text/tab-separated-values", source = "/dummy/path/to/dummy/file")
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 3)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A text doc" should "return NER sendables" in {
@@ -189,10 +176,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -201,10 +188,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 1)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("unarchive")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -213,10 +200,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 1)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("rawtext")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -246,10 +233,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = doclibFlags)
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("pdf_intermediates")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A PDF which has been raw text and pdf intermediates processed" should "return bounding boxes sendables" in {
@@ -280,10 +267,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("pdf_figures")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A PDF which has been raw text, pdf intermediates and bounding box processed" should "return None" in {
@@ -334,10 +321,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -358,10 +345,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -390,10 +377,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
       val doc = dummy.copy(mimetype = mimetype, source = "/dummy/path/to/dummy/file")
       val (key, result) = engine.resolve(doc).get
       assert(result.length == 3)
-      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+      assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
       assert(result.forall(s =>
         List("ner.chemblactivityterms", "ner.chemicalentities", "ner.chemicalidentifiers")
-          .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+          .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
     })
   }
 
@@ -454,10 +441,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("analytical.supervisor")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A PDF which has been raw text, pdf intermediates and bounding box processed with intermediates reset" should "return a pdf_intermediates sendable" in {
@@ -501,10 +488,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     val doc = dummy.copy(mimetype = "application/pdf", source = "/dummy/path/to/dummy/file", doclib = flags)
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("pdf_intermediates")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
   "A Tabular doc with completed ner with 2 reset" should "return 2 NER sendables" in {
@@ -541,10 +528,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     )
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 2)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("ner.chemicalentities", "ner.chemicalidentifiers")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
 
@@ -581,10 +568,10 @@ class EngineSpec extends TestKit(ActorSystem("EngineSpec", ConfigFactory.parseSt
     )
     val (key, result) = engine.resolve(doc).get
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("tabular.analysis")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }
 
 
