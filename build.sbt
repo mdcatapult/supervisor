@@ -1,11 +1,6 @@
 import sbtrelease.ReleaseStateTransformations._
 import Release._
 
-lazy val configVersion = "1.3.2"
-lazy val akkaVersion = "2.6.4"
-lazy val catsVersion = "2.1.0"
-lazy val doclibCommonVersion = "3.0.2"
-
 val meta = """META.INF/(blueprint|cxf).*""".r
 
 lazy val IntegrationTest = config("it") extend Test
@@ -38,30 +33,33 @@ lazy val root = (project in file("."))
       }
     },
     libraryDependencies ++= {
-      val doclibCommonVersion = "3.1.1"
+      val doclibCommonVersion = "4.0.0"
 
-      val configVersion = "1.4.1"
-      val akkaVersion = "2.6.18"
-      val catsVersion = "2.6.1"
-      val scalacticVersion = "3.2.10"
-      val scalaTestVersion = "3.2.11"
+      val configVersion = "1.4.2"
+      val akkaVersion = "2.8.1"
+      val catsVersion = "2.9.0"
+      val scalacticVersion = "3.2.15"
+      val scalaTestVersion = "3.2.15"
       val scalaMockVersion = "5.2.0"
-      val scalaLoggingVersion = "3.9.4"
-      val logbackClassicVersion = "1.2.10"
+      val scalaLoggingVersion = "3.9.5"
+      val logbackClassicVersion = "1.4.7"
       val moultingYamlVersion = "0.4.2"
+      val log4jVersion = "2.20.0"
+
       Seq(
-      "net.jcazevedo" %% "moultingyaml"               % moultingYamlVersion,
-      "org.scalactic" %% "scalactic"                  % scalacticVersion,
-      "org.scalatest" %% "scalatest"                  % scalaTestVersion % "it, test",
-      "org.scalamock" %% "scalamock"                  % scalaMockVersion % "it, test",
-      "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % "it, test",
-      "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,
-      "ch.qos.logback" % "logback-classic"            % logbackClassicVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
-      "com.typesafe" % "config"                       % configVersion,
-      "org.typelevel" %% "cats-kernel"                % catsVersion,
-      "org.typelevel" %% "cats-core"                  % catsVersion,
-      "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion,
+        "net.jcazevedo" %% "moultingyaml"               % moultingYamlVersion,
+        "org.scalactic" %% "scalactic"                  % scalacticVersion,
+        "org.scalatest" %% "scalatest"                  % scalaTestVersion % "it, test",
+        "org.scalamock" %% "scalamock"                  % scalaMockVersion % "it, test",
+        "com.typesafe.akka" %% "akka-testkit"           % akkaVersion % "it, test",
+        "com.typesafe.akka" %% "akka-slf4j"             % akkaVersion,
+        "ch.qos.logback" % "logback-classic"            % logbackClassicVersion,
+        "org.apache.logging.log4j" % "log4j-core"       % log4jVersion,
+        "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
+        "com.typesafe" % "config"                       % configVersion,
+        "org.typelevel" %% "cats-kernel"                % catsVersion,
+        "org.typelevel" %% "cats-core"                  % catsVersion,
+        "io.mdcatapult.doclib" %% "common"              % doclibCommonVersion
     )
     }.map(
       _.exclude(org = "javax.ws.rs", name = "javax.ws.rs-api")
@@ -72,8 +70,8 @@ lazy val root = (project in file("."))
   )
   .settings(
     assemblyJarName := "consumer.jar",
-    test in assembly := {},
-    assemblyMergeStrategy in assembly := {
+    assembly / test := {},
+    assembly / assemblyMergeStrategy := {
       case PathList("javax", "servlet", _*) => MergeStrategy.first
       case PathList("javax", "activation", _*) => MergeStrategy.first
       case PathList("com", "sun", "activation", "registries", _*) => MergeStrategy.first
@@ -94,7 +92,7 @@ lazy val root = (project in file("."))
       case "META-INF/jpms.args" => MergeStrategy.discard
       case "META-INF/io.netty.versions.properties" => MergeStrategy.discard
       case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     }
   )

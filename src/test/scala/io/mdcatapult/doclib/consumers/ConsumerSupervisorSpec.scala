@@ -1,19 +1,18 @@
 package io.mdcatapult.doclib.consumers
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
-import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Tabular
-import io.mdcatapult.klein.queue.Registry
 import org.mongodb.scala.bson.ObjectId
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class ConsumerSupervisorSpec extends TestKit(ActorSystem("ConsumerSupervisorSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -72,11 +71,10 @@ class ConsumerSupervisorSpec extends TestKit(ActorSystem("ConsumerSupervisorSpec
       |}
     """.stripMargin)
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId(),
-    source = "dummt.txt",
+    source = "dummy.txt",
     hash = "01234567890",
     derivative = false,
     created = LocalDateTime.now(),

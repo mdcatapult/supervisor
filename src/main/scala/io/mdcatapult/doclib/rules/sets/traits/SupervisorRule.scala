@@ -1,12 +1,15 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
-import java.time.ZoneOffset
+import akka.stream.Materializer
 
+import java.time.ZoneOffset
 import com.typesafe.config.Config
+import io.mdcatapult.doclib.consumer.HandlerResult
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
 import io.mdcatapult.doclib.rules.sets.Sendables
-import io.mdcatapult.klein.queue.{Envelope, Registry}
+import io.mdcatapult.klein.queue.{Envelope, Queue}
 
+import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 
 trait SupervisorRule[T <: Envelope] {
@@ -18,7 +21,7 @@ trait SupervisorRule[T <: Envelope] {
     * @param registry Registry
     * @return
     */
-  def unapply(doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[(String, Sendables)]
+  def unapply(doc: DoclibDoc)(implicit config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)]
 
   /**
     * tests if all flags for key have been completed
@@ -53,12 +56,12 @@ trait SupervisorRule[T <: Envelope] {
     * @return
     */
   def getSendables(key: String)
-                  (implicit doc: DoclibDoc, config: Config, registry: Registry[T])
+                  (implicit doc: DoclibDoc, config: Config, m: Materializer, ex: ExecutionContext)
   : (String, Sendables) =
     (key, config.getConfigList(s"$key.required").asScala
       .filter(sendableAllowed)
       .map(r => r.getString("type") match {
-        case "queue" => registry.get(r.getString("route"))
+        case "queue" => Queue[T, HandlerResult](name = r.getString("route"))
         case _ => throw new Exception(s"Unable to handle configured type '${r.getString("type")}' for required flag $key")
       }).toList.asInstanceOf[Sendables])
 
@@ -85,7 +88,7 @@ trait SupervisorRule[T <: Envelope] {
     }
   }
 
-  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, registry: Registry[T]): Option[(String, Sendables)] = {
+  def doTask(key: String, doc: DoclibDoc)(implicit config: Config, m: Materializer, ex: ExecutionContext): Option[(String, Sendables)] = {
     implicit val document: DoclibDoc = doc
     getSendables(key) match {
       case (s, head::rest) => Some((s, head::rest))

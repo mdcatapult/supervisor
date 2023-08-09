@@ -1,18 +1,19 @@
 package io.mdcatapult.doclib.rules.sets
 
 import java.time.LocalDateTime
-
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestKit}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.DoclibMsg
 import io.mdcatapult.doclib.models.{DoclibDoc, DoclibFlag}
-import io.mdcatapult.klein.queue.{Queue, Registry}
+import io.mdcatapult.klein.queue.Queue
 import io.mdcatapult.util.models.Version
 import org.mongodb.scala.bson.ObjectId
 import org.scalatest.wordspec.AnyWordSpecLike
 import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
@@ -70,29 +71,15 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
       |    }]
       |  }
       |}
-      |op-rabbit {
-      |  topic-exchange-name = "doclib"
-      |  channel-dispatcher = "op-rabbit.default-channel-dispatcher"
-      |  default-channel-dispatcher {
-      |    type = Dispatcher
-      |    executor = "fork-join-executor"
-      |    fork-join-executor {
-      |      parallelism-min = 2
-      |      parallelism-factor = 2.0
-      |      parallelism-max = 4
-      |    }
-      |    throughput = 1
-      |  }
-      |  connection {
-      |    virtual-host = "doclib"
-      |    hosts = ["localhost"]
-      |    username = "doclib"
-      |    password = "doclib"
-      |    port = 5672
-      |    ssl = false
-      |    trust-everything = true
-      |    connection-timeout = 3s
-      |  }
+      |queue {
+      |  max-retries = 3
+      |  host = "localhost"
+      |  virtual-host = "doclib"
+      |  username = "doclib"
+      |  password = "doclib"
+      |  port = 5672
+      |  ssl = false
+      |  connection-timeout = 3000
       |}
       |error {
       |  queue = false
@@ -103,7 +90,6 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
     """.stripMargin)
 
   implicit val m: Materializer = Materializer(system)
-  implicit val registry: Registry[DoclibMsg] = new Registry[DoclibMsg]()
 
   private val dummy = DoclibDoc(
     _id = new ObjectId(),
@@ -128,10 +114,10 @@ class DocumentSpec extends TestKit(ActorSystem("DocumentSpec", ConfigFactory.par
     assert(result.isInstanceOf[Sendables])
     assert(result.nonEmpty)
     assert(result.length == 1)
-    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg]]))
+    assert(result.forall(s => s.isInstanceOf[Queue[DoclibMsg, DoclibMsg]]))
     assert(result.forall(s =>
       List("rawtext")
-        .contains(s.asInstanceOf[Queue[DoclibMsg]].name)))
+        .contains(s.asInstanceOf[Queue[DoclibMsg, DoclibMsg]].name)))
   }}
 
   "A  PDF doc which has been converted to raw text" should {
