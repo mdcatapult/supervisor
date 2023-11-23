@@ -17,6 +17,8 @@ variables:
   RABBITMQ_DEFAULT_USER: guest
   RABBITMQ_DEFAULT_PASS: guest
   RABBITMQ_DEFAULT_VHOST: doclib
+  MONGO_PORT: 27017
+  RABBITMQ_PORT: 5672
 
 cache:
   key: "${CI_COMMIT_REF_SLUG}"
@@ -28,12 +30,10 @@ cache:
     - "sbt-cache/target"
 
 default:
-  image: registry.mdcatapult.io/informatics/docker-images/ci/scala
+  image: registry.gitlab.com/medicines-discovery-catapult/informatics/docker-images/ci/sbt:latest
 
 test:
   stage: test
-  tags:
-    - wopr
   variables:
     MONGO_HOST: mongo
     MONGO_DATABASE: leadmine-test
@@ -58,8 +58,6 @@ test:
 
 assemble:
   stage: build
-  tags:
-    - wopr
   script:
     - sbt assembly
   artifacts:
@@ -67,14 +65,12 @@ assemble:
       - target/scala-2.13/consumer.jar
   except:
     refs:
-      - master
+      - main
     variables:
       - $CI_COMMIT_MESSAGE =~ /^Setting version to.*/
 
 publish:
   stage: publish
-  tags:
-    - wopr
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -88,29 +84,24 @@ publish:
       --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   except:
     refs:
-      - master
+      - main
     variables:
       - $CI_COMMIT_MESSAGE =~ /^Setting version to.*/
 
 release:
   stage: release
-  tags:
-    - wopr
   script:
-    - release.sh
+    - cictl exec release sbt
   only:
-    - master
+    - main
   except:
     variables:
       - $CI_COMMIT_MESSAGE =~ /^Setting version to.*/
 
-assemble-master:
+assemble-main:
   stage: build
-  tags:
-    - wopr
   script:
     - sbt assembly
-    - /scripts/upload-files.sh 'target/scala-2.13/consumer.jar' $CI_COMMIT_REF_NAME
   artifacts:
     paths:
       - target/scala-2.13/consumer.jar
@@ -120,10 +111,8 @@ assemble-master:
     variables:
       - $CI_COMMIT_MESSAGE =~ /^Setting version to.*/
 
-publish-master:
+publish-main:
   stage: publish
-  tags:
-    - wopr
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
