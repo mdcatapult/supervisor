@@ -8,7 +8,7 @@ lazy val scala_2_13 = "2.13.14"
 val doclibCommonVersion = "5.0.1"
 
 val configVersion = "1.4.3"
-val pekkoVersion = "1.0.3"
+val pekkoVersion = "1.0.2"
 val catsVersion = "2.12.0"
 val scalacticVersion = "3.2.15"
 val scalaTestVersion = "3.2.15"
