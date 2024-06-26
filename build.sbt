@@ -89,6 +89,7 @@ lazy val root = (project in file("."))
       case PathList("scala", "util", "control", "compat", _*) => MergeStrategy.first
       case PathList(xs @ _*) if xs.last == "public-suffix-list.txt" => MergeStrategy.first
       case PathList(xs @ _*) if xs.last == ".gitkeep" => MergeStrategy.discard
+      case PathList(xs @ _*) if xs.last == "native-image.properties" => MergeStrategy.first
       case n if n.startsWith("application.conf") => MergeStrategy.first
       case n if n.endsWith(".conf") => MergeStrategy.concat
       case n if n.startsWith("logback.xml") => MergeStrategy.first
