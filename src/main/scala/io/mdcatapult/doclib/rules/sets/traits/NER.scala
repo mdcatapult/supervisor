@@ -1,6 +1,6 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 import com.typesafe.config.Config
 import io.mdcatapult.doclib.models.DoclibDoc
 import io.mdcatapult.doclib.rules.sets.Sendables

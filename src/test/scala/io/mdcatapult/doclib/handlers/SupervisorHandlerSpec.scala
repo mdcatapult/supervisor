@@ -1,9 +1,9 @@
 package io.mdcatapult.doclib.handlers
 
 import java.time.LocalDateTime
-import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.testkit.TestKit
 import com.mongodb.reactivestreams.client.{MongoCollection => JMongoCollection}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.mdcatapult.doclib.messages.{DoclibMsg, SupervisorMsg}

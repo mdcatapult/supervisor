@@ -1,7 +1,6 @@
 package io.mdcatapult.doclib.handlers
 
-import akka.actor.ActorSystem
-import akka.stream.alpakka.amqp.scaladsl.CommittableReadResult
+import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import io.mdcatapult.doclib.consumer.{AbstractHandler, HandlerResult}
@@ -14,6 +13,7 @@ import io.mdcatapult.util.concurrency.LimitedExecution
 import io.mdcatapult.util.models.Version
 import io.mdcatapult.util.models.result.UpdatedResult
 import io.mdcatapult.util.time.nowUtc
+import org.apache.pekko.stream.connectors.amqp.scaladsl.CommittableReadResult
 import org.bson.types.ObjectId
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.model.Filters.equal

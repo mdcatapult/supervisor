@@ -1,6 +1,6 @@
 package io.mdcatapult.doclib.rules.sets.traits
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 
 import java.time.ZoneOffset
 import com.typesafe.config.Config

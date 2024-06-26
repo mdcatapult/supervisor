@@ -1,11 +1,10 @@
 package io.mdcatapult.doclib.consumers
 
 import java.time.temporal.ChronoUnit.MILLIS
-import akka.actor._
-import akka.stream.Materializer
-import akka.stream.alpakka.amqp.scaladsl.CommittableReadResult
-import akka.testkit.{ImplicitSender, TestKit}
-import akka.util.Timeout
+import org.apache.pekko.actor._
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.testkit.{ImplicitSender, TestKit}
+import org.apache.pekko.util.Timeout
 import better.files.{File => ScalaFile}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -19,6 +18,7 @@ import io.mdcatapult.klein.mongo.Mongo
 import io.mdcatapult.klein.queue.{Envelope, Queue, Sendable}
 import io.mdcatapult.util.concurrency.SemaphoreLimitedExecution
 import io.mdcatapult.util.models.Version
+import org.apache.pekko.stream.connectors.amqp.scaladsl.CommittableReadResult
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala.MongoCollection
 import org.mongodb.scala.bson.ObjectId
